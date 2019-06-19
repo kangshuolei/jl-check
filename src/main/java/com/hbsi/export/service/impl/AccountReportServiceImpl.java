@@ -1,0 +1,171 @@
+package com.hbsi.export.service.impl;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.poi.hssf.usermodel.HSSFCellStyle;
+import org.apache.poi.hssf.usermodel.HSSFFont;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.domain.WireRope;
+import com.hbsi.export.service.AccountReportService;
+import com.hbsi.response.Response;
+
+@Service
+public class AccountReportServiceImpl implements AccountReportService {
+
+	/**
+	 * author:shazhou
+	 */
+	@Autowired
+	private WireRopeMapper wireRopeMapper;
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+	/**
+	 * 前端下载excel，报告统计页面
+	 * 
+	 */
+	@Override
+	public Response<?> accountReportExport(String producerNumber, String judgeStandard, HttpServletResponse response)
+			throws IOException {
+		HSSFWorkbook wb = new HSSFWorkbook();
+		Sheet sheet = wb.createSheet("报告统计");
+		// 第一部分，设置表头，报告统计
+		CellRangeAddress region1 = new CellRangeAddress(0, 1, (short) 0, (short) 8);
+		sheet.addMergedRegion(region1);
+		HSSFRow row1 = (HSSFRow) sheet.createRow(0);
+		// 第一个合并单元区域：把合并区域添加到工作簿中
+		row1.createCell(0).setCellValue("报告统计表");
+		Font fontStyle1 = wb.createFont();
+		// 字体加粗，字体大小.不设置边框
+		fontStyle1.setBold(true);
+		fontStyle1.setFontHeightInPoints((short) 16);
+		HSSFCellStyle cellStyle = wb.createCellStyle();
+		cellStyle.setFont(fontStyle1);
+		// 居中
+		cellStyle.setAlignment(HorizontalAlignment.CENTER);// 水平居中
+		cellStyle.setVerticalAlignment(VerticalAlignment.CENTER);// 垂直居中
+		row1.getCell(0).setCellStyle(cellStyle);
+
+		// 第2部分。第2行内容，设置表头行
+		HSSFRow row3 = (HSSFRow) sheet.createRow(2);
+		List<String> headerlist = new ArrayList<String>();
+		headerlist.add("序号");
+		headerlist.add("委托单号");
+		headerlist.add("结构");
+		headerlist.add("规格");
+		headerlist.add("产品编号");
+		headerlist.add("执行标准");
+		headerlist.add("强度级别");
+		headerlist.add("判定结果");
+		headerlist.add("备注");
+		for (int i = 0; i < headerlist.size(); i++) {
+			row3.createCell(i).setCellValue(headerlist.get(i));
+			row3.getCell(i).setCellStyle(basicCellType(wb));
+		}
+
+		// 第3部分。设置内容行
+		List<WireRope> wireRopeList = selectWireRopeList1(producerNumber, judgeStandard);
+		for (int i = 0; i < wireRopeList.size(); i++) {
+			HSSFRow row = (HSSFRow) sheet.createRow(3 + i);
+			// 生成单元格，并且设定格式
+			for (int j = 0; j < 9; j++) {
+				row.createCell(j).setCellStyle(basicCellType(wb));
+			}
+			row.getCell(0).setCellValue(i + 1);
+			row.getCell(1).setCellValue(wireRopeList.get(i).getEnstrustmentNumber());
+			row.getCell(2).setCellValue(wireRopeList.get(i).getStructure());
+			row.getCell(3).setCellValue(wireRopeList.get(i).getSpecification());
+			row.getCell(4).setCellValue(wireRopeList.get(i).getProducerNumber());
+			row.getCell(5).setCellValue(wireRopeList.get(i).getJudgeStandard());
+			row.getCell(6).setCellValue(wireRopeList.get(i).getStrengthLevel());
+			row.getCell(7).setCellValue(wireRopeList.get(i).getEvaluation());
+			row.getCell(8).setCellValue(wireRopeList.get(i).getMemo());
+		}
+		//自动设置列宽
+		for (int i = 0; i < 9; i++) {  
+		    sheet.autoSizeColumn(i);  
+		}  
+
+		// 第4部分。写入到file中，让前端页面下载。
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+		String month = sdf.format(new Date());
+		String basePath = "D:"+File.separator+"报告统计表";
+		File file3 = new File(basePath);
+		if(!file3.exists()) {
+			file3.mkdirs();
+			System.out.println(file3.getAbsolutePath());
+		}
+		String filePath = basePath+File.separator+month+"报告统计.xls";
+		try (FileOutputStream sos= new FileOutputStream(filePath)) {
+			wb.write(sos);
+		}catch(Exception e) {
+			logger.error("导出excel失败，原因是:{}",e.toString());
+			return new Response<>("00002010","导出报告失败",null);
+		}
+		return new Response<>("200","ok",null);
+	}
+
+	/**
+	 * 根据输入的产品标号和标准查询得到报告列表
+	 * 
+	 * @param producerNumber
+	 * @param judgeStandard
+	 * @return
+	 */
+	private List<WireRope> selectWireRopeList1(String producerNumber, String judgeStandard) {
+		WireRope w = new WireRope();
+		w.setProducerNumber(producerNumber);
+		w.setJudgeStandard(judgeStandard);
+		List<WireRope> list = wireRopeMapper.selectWireRopeList(w);
+		return list;
+	}
+
+	/**
+	 * 完美设置单元格格式
+	 * 
+	 * @param wb
+	 * @return
+	 */
+	private HSSFCellStyle basicCellType(HSSFWorkbook wb) {
+		// 设置样式
+		HSSFCellStyle style = wb.createCellStyle();
+		// 加边框
+		style.setBorderBottom(BorderStyle.THIN);// 下边框
+		style.setBorderLeft(BorderStyle.THIN);// 左边框
+		style.setBorderRight(BorderStyle.THIN);// 右边框
+		style.setBorderTop(BorderStyle.THIN); // 上边框
+		// 居中
+		style.setAlignment(HorizontalAlignment.CENTER);// 水平居中
+		style.setVerticalAlignment(VerticalAlignment.CENTER);// 垂直居中
+		// 设置字体
+		HSSFFont font = wb.createFont();
+//		font.setFontName("华文行楷");//设置字体名称
+		font.setFontHeightInPoints((short) 14);// 设置字号
+		font.setItalic(false);// 设置是否为斜体
+		font.setBold(false);// 设置是否加粗
+		font.setColor(IndexedColors.BLACK.index);// 设置字体颜色
+		style.setFont(font);
+		return style;
+	}
+}

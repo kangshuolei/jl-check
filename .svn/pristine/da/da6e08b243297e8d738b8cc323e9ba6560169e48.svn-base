@@ -1,0 +1,172 @@
+package com.hbsi;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
+
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.response.Response;
+import com.hbsi.steel.service.SteelService;
+
+/**
+ * 钢丝报告处理
+ * 
+ * @author lixuyang
+ *
+ */
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes =JlCheckApplication.class)
+@WebAppConfiguration
+public class SteelTest {
+	
+	@Resource
+	private SteelService steelService;
+	
+	/**
+	 * 调入委托单数据
+	 */
+//	@Test
+	public void testSelectSteelData() {
+		JSONObject json = new JSONObject();
+		json.put("entrustmentNumber", "WG180927B002");
+		Response<List<SampleRecord>> response = steelService.selectSteelData(json.toString());
+		System.out.println(response);
+	}
+	
+	/**
+	 * 查询钢丝数据
+	 */
+//	@Test
+	public void testSelectSteelWireList() {
+		JSONObject json = new JSONObject();
+		json.put("entrustmentNumber", "WG180927B007");
+		Response<List<SteelWireData>> response = steelService.selectSteelWireList(json.toString());
+		System.out.println(response);
+	}
+	
+	/**
+	 * 添加钢丝数据
+	 */
+//	@Test
+	public void testSaveSteelWire() {
+		List<SteelWireData> list = new ArrayList<>();
+		SteelWireData s = new SteelWireData();
+		s.setId(1);
+		s.setEntrustmentNumber("WG180927B007");//委托单号
+		s.setProductionNumber("夜1头");//生产序号
+		s.setpDiamete(8.0);//原直径
+		s.setfDiamete(3.15);//成品直径
+		s.setStrengthLevel("1770");//强度级别
+		s.setUse("Z");//用途
+		s.setSurface("U");//表面状态
+		s.setBreakTensile(15.25);//破断拉力
+		s.setTorsionTimes(29);//扭转次数
+		s.setBendingTimes(23);//弯曲次数
+		s.setSteelLength(3150);//长度
+		s.setBoard(13);//机台
+		s.setWheelNumber("L27");//轮号
+		s.setGradeSteel("82A");//钢号
+		s.setProducer("陈英培");//生产者
+		s.setMemo("检5大绳");//备注
+		list.add(s);
+		Response<Integer> response = steelService.saveSteelWire(list);
+		System.out.println(response);
+	}
+	
+	/**
+	 * 修改钢丝数据（判定）
+	 */
+	@Test
+	public void testUpdateSteelWire() {
+		List<SteelWireData> list = new ArrayList<>();
+		SteelWireData s = new SteelWireData();
+		s.setId(1);
+		s.setfDiamete(3.15);//成品直径
+		s.setStrengthLevel("1770");//强度级别
+		s.setUse("Z");//用途
+		s.setSurface("U");//表面状态
+		s.setBreakTensile(15.25);//破断拉力
+		s.setTorsionTimes(29);//扭转次数
+		s.setBendingTimes(23);//弯曲次数
+		
+		SteelWireData s1 = new SteelWireData();
+		s1.setId(3);
+		s1.setfDiamete(3.15);//成品直径
+		s1.setStrengthLevel("1770");//强度级别
+		s1.setUse("Z");//用途
+		s1.setSurface("U");//表面状态
+		s1.setBreakTensile(15.21);//破断拉力
+		s1.setTorsionTimes(29);//扭转次数
+		s1.setBendingTimes(22);//弯曲次数
+		
+		SteelWireData s2 = new SteelWireData();
+		s2.setId(5);
+		s2.setfDiamete(3.15);//成品直径
+		s2.setStrengthLevel("1770");//强度级别
+		s2.setUse("Z");//用途
+		s2.setSurface("U");//表面状态
+		s2.setBreakTensile(15.35);//破断拉力
+		s2.setTorsionTimes(28);//扭转次数
+		s2.setBendingTimes(23);//弯曲次数
+		
+		SteelWireData s3 = new SteelWireData();
+		s3.setId(7);
+		s3.setfDiamete(3.15);//成品直径
+		s3.setStrengthLevel("1770");//强度级别
+		s3.setUse("Z");//用途
+		s3.setSurface("U");//表面状态
+		s3.setBreakTensile(15.22);//破断拉力
+		s3.setTorsionTimes(28);//扭转次数
+		s3.setBendingTimes(24);//弯曲次数
+		
+		SteelWireData s4 = new SteelWireData();
+		s4.setId(9);
+		s4.setfDiamete(3.15);//成品直径
+		s4.setStrengthLevel("1770");//强度级别
+		s4.setUse("Z");//用途
+		s4.setSurface("U");//表面状态
+		s4.setBreakTensile(15.27);//破断拉力
+		s4.setTorsionTimes(28);//扭转次数
+		s4.setBendingTimes(22);//弯曲次数
+		
+		SteelWireData s5 = new SteelWireData();
+		s5.setId(11);
+		s5.setfDiamete(3.15);//成品直径
+		s5.setStrengthLevel("1770");//强度级别
+		s5.setUse("Z");//用途
+		s5.setSurface("U");//表面状态
+		s5.setBreakTensile(14.43);//破断拉力
+		s5.setTorsionTimes(31);//扭转次数
+		s5.setBendingTimes(24);//弯曲次数
+		
+		SteelWireData s6 = new SteelWireData();
+		s6.setId(13);
+		s6.setfDiamete(2.10);//成品直径
+		s6.setStrengthLevel("1770");//强度级别
+		s6.setUse("Z");//用途
+		s6.setSurface("U");//表面状态
+		s6.setBreakTensile(6.39);//破断拉力
+		s6.setTorsionTimes(30);//扭转次数
+		s6.setBendingTimes(23);//弯曲次数
+		list.add(s);
+		list.add(s1);
+		list.add(s2);
+		list.add(s3);
+		list.add(s4);
+		list.add(s5);
+		list.add(s6);
+		
+		Response<Integer> response = steelService.updateSteelWire(list);
+		System.out.println(response);
+	}
+
+}

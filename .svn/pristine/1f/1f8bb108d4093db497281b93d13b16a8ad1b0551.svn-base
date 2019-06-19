@@ -1,0 +1,22 @@
+package com.hbsi.sample.service;
+
+import java.util.List;
+
+import com.hbsi.domain.Sample;
+import com.hbsi.response.Response;
+
+/**
+ * 试验数据管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+public interface SampleService {
+	
+	/**
+	 * 查询试样批次列表
+	 * @return
+	 */
+	Response<List<Sample>> selectSampleList();
+
+}

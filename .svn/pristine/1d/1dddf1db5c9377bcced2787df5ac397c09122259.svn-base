@@ -1,0 +1,282 @@
+package com.hbsi.wire.service.impl;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.WireDataMapper;
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.wire.service.WireRopeService;
+
+
+@Service
+public class WireRopeServiceImpl implements WireRopeService{
+	private Logger logger=LoggerFactory.getLogger(WireRopeService.class);
+	@Autowired
+	private WireRopeMapper wireRopeMapper;
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;
+	@Autowired
+	private WireDataMapper wireDataMapper;
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;
+	/**
+	 * 查询和创建钢丝绳报告
+	 */
+	@Override
+	public Response<WireRope> selectOrCreateWR(String enstrustmentNumber) {
+		WireRope wireRope=wireRopeMapper.selectByEnsNum(enstrustmentNumber);
+		if(wireRope==null) {
+			Entrustment e=new Entrustment();
+			e.setEntrustmentNumber(enstrustmentNumber);
+			Entrustment en=entrustmentMapper.selectEntrustmentNumber(e);
+			SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd");
+			SimpleDateFormat sd=new SimpleDateFormat("yyyy-MM");
+			wireRope=new WireRope();
+			wireRope.setEnstrustmentNumber(enstrustmentNumber);
+			wireRope.setReportDate(sdf.format(new Date()));
+			wireRope.setReportNumber("L-"+sd.format(new Date())+"-"+en.getSampleBatch());
+			wireRope.setStockSplitMethod("部分试验");
+			wireRope.setRecorderNumber("DG"+sd.format(new Date())+"-"+en.getSampleBatch());
+			try {
+				int i=wireRopeMapper.insertSelective(wireRope);
+			} catch (Exception ex) {
+				logger.error("添加钢丝绳报告出现错误:{}",ex.getLocalizedMessage());
+				throw new BaseException(ExceptionEnum.WIREROPE_SAVE_ERROR);
+			}
+		}
+		return new Response<WireRope>(wireRope);
+	}
+	/**
+	 * 调入数据
+	 * 1、先查看钢丝绳数据中有没有数据，如果没有，将钢丝数据取出来，对应添加到钢丝绳数据中返回
+	 */
+	@Override
+	public Response<List<WireData>> selectWireData(WireRope wireRope) {
+		String entrustmentNumber=wireRope.getEnstrustmentNumber();
+		WireRope wr=wireRopeMapper.selectByEnsNum(entrustmentNumber);
+		if(wr!=null) {
+			exchange(wr, wireRope);
+		}else {
+			wr=wireRope;
+		}
+		List<WireData> wireList=wireDataMapper.selectByEnNum(entrustmentNumber);
+		if(wireList==null||wireList.size()==0) {
+			wireList=new ArrayList<WireData>();
+			List<SteelWireData> slist=steelWireDataMapper.selectByEnNum(entrustmentNumber);
+			if(slist==null||slist.size()==0) {
+				logger.error("没有数据");
+			}else {
+				String cl=wr.getTrialClass();
+				String[] str=cl.split(",");
+				List<String[]> l=new ArrayList<>();
+				for(int i=0;i<str.length;i++) {
+					String s=str[i];
+					String[] ss=s.split("*");
+					l.add(ss);
+				}
+				int n=1;
+				int m=0;
+				for(SteelWireData s:slist) {
+					String[] nd=l.get(m);
+					WireData w=new WireData();
+					w.setnDiamete(Double.parseDouble(nd[0]));
+					w.setDiamete(s.getfDiamete());
+					w.setBreakTensile(s.getBreakTensile());
+					w.setTensileStrength(s.getTensileStrength());
+					w.setKnotTension(s.getKnotTension());
+					w.setKnotRate(s.getKnotRate());
+					w.setTurnTimes(s.getTorsionTimes());
+					w.setWindingTimes(s.getBendingTimes());
+					w.setEntrustmentNumber(entrustmentNumber);
+					wireList.add(w);
+					Integer num=Integer.parseInt(nd[1]);
+					if(n==num) {
+						n=1;
+						m++;
+					}else {
+						n++;
+					}
+				}
+				try {
+					int j=wireRopeMapper.updateByPrimaryKey(wr);
+					int i=wireDataMapper.insertWireDataBatch(wireList);
+				} catch (Exception e) {
+					logger.error("添加钢丝绳数据失败,{}",e.getLocalizedMessage());
+					throw new BaseException(ExceptionEnum.WIREROPE_DATA_SAVE_ERROR);
+				}
+			}
+		}
+		return new Response<List<WireData>>(wireList);
+	}
+	/**
+	 * 钢丝绳总和判定
+	 * 先保存数据
+	 * 1.计算最小钢丝破断拉力
+	 * 2.计算实测钢丝拉力总和
+	 * 3、直径判定
+	 * 4、抗拉强度判定
+	 * 5、扭转次数判定
+	 * 6、弯曲次数判定
+	 * 7、
+	 */
+	@Override
+	public Response<Object> judgeWireRope(WireRope wireRope) {
+		/*数据保存*/
+		if(wireRope==null) {
+			logger.error("没有数据");
+			
+		}else {
+			/*修改钢丝绳数据*/
+			saveWireData(wireRope);
+			/*计算钢丝破断拉力*/
+			
+		}
+		return null;
+	}
+	/**
+	 * 计算钢丝的最小破断拉力
+	 * @param wireRope
+	 * @return
+	 * 试验钢丝的拉力+不试验钢丝的计算拉力
+	 */
+	private double calWireBreakTensile(WireRope wireRope) {
+		/*试验钢丝的拉力*/
+		String trialClass=wireRope.getTrialClass();
+		
+		return 0;
+	}
+	/**
+	 * 修改钢丝绳数据
+	 * @param wireRope
+	 */
+	private void saveWireData(WireRope wireRope) {
+		WireRope w=wireRopeMapper.selectByEnsNum(wireRope.getEnstrustmentNumber());
+		exchange(w, wireRope);
+		List<WireData> dataList=wireDataMapper.selectByEnNum(wireRope.getEnstrustmentNumber());
+		List<WireData> list=wireRope.getWireDataList();
+		for(WireData d:dataList) {
+			for(WireData l:list) {
+				if(d.getId()==l.getId()) {
+					wireDataChange(d, l);
+					dataList.add(d);
+				}
+			}
+		}
+		try {
+			int i=wireRopeMapper.updateByPrimaryKey(w);
+			int j=wireDataMapper.updateWireDataBatch(dataList);
+		} catch (Exception e) {
+			logger.error("修改钢丝绳数据出现错误:{}",e.getLocalizedMessage());
+		}
+	}
+	
+	private void exchange(WireRope w,WireRope r) {
+		if(r.getProducerNumber()!=null&&!"".equals(r.getProducerNumber())) {
+			w.setProducerNumber(r.getProducerNumber());
+		}
+		if(r.getReportNumber()!=null&&!"".equals(r.getReportNumber())) {
+			w.setReportNumber(r.getReportNumber());
+		}
+		if(r.getReportDate()!=null&&!"".equals(r.getReportDate())) {
+			w.setReportDate(r.getReportDate());
+		}
+		if(r.getSpecification()!=null&&!"".equals(r.getSpecification())) {
+			w.setSpecification(r.getSpecification());
+		}
+		if(r.getStructure()!=null&&!"".equals(r.getStructure())){
+			w.setStructure(r.getStructure());
+		}
+		if(r.getStrengthLevel()!=null&&!"".equals(r.getStrengthLevel())) {
+			w.setStrengthLevel(r.getStrengthLevel());
+		}
+		if(r.getSurfaceState()!=null&&!"".equals(r.getSurfaceState())) {
+			w.setSurfaceState(r.getSurfaceState());
+		}
+		if(r.getTwistingMethod()!=null&&!"".equals(r.getTwistingMethod())) {
+			w.setTwistingMethod(r.getTwistingMethod());
+		}
+		if(r.getMeasureBreakTensile()!=0) {
+			w.setMeasureBreakTensile(r.getMeasureBreakTensile());
+		}
+		if(r.getMinBreakTensile()!=0) {
+			w.setMinBreakTensile(r.getMinBreakTensile());
+		}
+		if(r.getDiamete()!=0) {
+			w.setDiamete(r.getDiamete());
+		}
+		w.setDiameteNonRundness(r.getDiameteNonRundness());
+		if(r.getStockSplitMethod()!=null) {
+			w.setStockSplitMethod(r.getStockSplitMethod());
+		}
+		if(r.getTrialClass()!=null) {
+			w.setTrialClass(r.getTrialClass());
+		}
+		if(r.getNonTrialClass()!=null) {
+			w.setNonTrialClass(r.getNonTrialClass());
+		}
+		w.setCenterDiamete(r.getCenterDiamete());
+		w.setCenterStrength(r.getCenterStrength());
+		if(r.getEvaluation()!=null) {
+			w.setEvaluation(r.getEvaluation());
+		}
+		if(r.getMemo()!=null) {
+			w.setMemo(r.getMemo());
+		}
+		if(r.getTemperature()!=null) {
+			w.setTemperature(r.getTemperature());
+		}
+		if(r.getTestStandard()!=null) {
+			w.setTestStandard(r.getTestStandard());
+		}
+		if(r.getRecorderNumber()!=null) {
+			w.setRecorderNumber(r.getRecorderNumber());
+		}
+		if(r.getRecorderMemo()!=null) {
+			w.setRecorderMemo(r.getRecorderMemo());
+		}
+	}
+	private void wireDataChange(WireData w,WireData d) {
+		if(d.getnDiamete()!=null) {
+			w.setnDiamete(d.getnDiamete());
+		}
+//		if(d.getDiamete()!=null) {
+//			w.setDiamete(d.getDiamete());
+//		}
+//		if(d.getBreakTensile()!=null) {
+//			w.setBreakTensile(d.getBreakTensile());
+//		}
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

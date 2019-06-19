@@ -1,0 +1,841 @@
+package com.hbsi.common.utils.word;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.math.BigInteger;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import javax.imageio.ImageIO;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.POIXMLDocument;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.TextAlignment;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTBookmark;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTHeight;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTMarkupRange;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRow;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTc;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTcPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTTrPr;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STLineSpacingRule;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.STMerge;
+import org.w3c.dom.Node;
+
+
+/**
+ * 使用POI,进行Word相关的操作
+ * @author xuyu
+ * <p>
+ * Modification History:
+ * </p>
+ * <p>
+ * Date Author Description
+ * </p>
+ * <p>
+ * ------------------------------------------------------------------
+ * </p>
+ * <p>
+ * </p>
+ * <p>
+ * </p>
+ */
+public class MSWordTool
+{
+
+	/** 内部使用的文档对象 **/
+	private CustomXWPFDocument document;
+
+	private BookMarks bookMarks = null;
+
+	/**
+	 * 为文档设置模板
+	 * @param templatePath 模板文件名称
+	 */
+	public void setTemplate(String templatePath)
+	{
+		try
+		{
+			this.document = new CustomXWPFDocument(POIXMLDocument.openPackage(templatePath));
+
+			bookMarks = new BookMarks(document);
+		}
+		catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 为文档设置模板
+	 * @param templatePath 模板文件名称
+	 */
+	public void setTemplate(InputStream in)
+	{
+		try
+		{
+			document = new CustomXWPFDocument(in);
+
+			bookMarks = new BookMarks(document);
+		}
+		catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 进行标签替换的例子,传入的Map中，key表示标签名称，value是替换的信息
+	 * @param indicator
+	 */
+	public void replaceBookMark(Map<String, String> indicator)
+	{
+		// 循环进行替换
+		Iterator<String> bookMarkIter = bookMarks.getNameIterator();
+		while (bookMarkIter.hasNext())
+		{
+			String bookMarkName = bookMarkIter.next();
+
+			// 得到标签名称
+			BookMark bookMark = bookMarks.getBookmark(bookMarkName);
+
+			// 进行替换
+			if (indicator.get(bookMarkName) != null)
+			{
+				bookMark.insertTextAtBookMark(indicator.get(bookMarkName), BookMark.INSERT_BEFORE);
+			}
+
+		}
+
+	}
+
+	/**
+	 * @param imgUrl 图片地址
+	 * @return
+	 */
+	public static BufferedImage getBufferedImage(String imgUrl)
+	{
+		URL url = null;
+		InputStream is = null;
+		BufferedImage img = null;
+		try
+		{
+			// url = new URL(imgUrl);
+			// is = url.openStream();
+			img = ImageIO.read(new File(imgUrl));
+		}
+		catch (MalformedURLException e)
+		{
+			//e.printStackTrace();
+		}
+		catch (IOException e)
+		{
+			//e.printStackTrace();
+		}
+		return img;
+	}
+
+	/**
+	 * 给Word文件替换普通文本，非表格部分
+	 * @param maps 要替换的Map文本值
+	 * @return
+	 * @throws FileNotFoundException
+	 */
+	@SuppressWarnings(
+	{ "rawtypes", "unchecked" })
+	public void replaceTitle(Map<String, String> maps) throws FileNotFoundException
+	{
+		Map<String, Object> map = new HashMap<String, Object>();
+		Set<Entry<String, String>> entrySet = maps.entrySet();
+		for (Iterator iterator = entrySet.iterator(); iterator.hasNext();)
+		{
+			Entry<String, String> entry = (Entry<String, String>) iterator.next();
+			if (entry.getKey().startsWith("img"))
+			{
+				String imageUrl = entry.getValue();
+				BufferedImage image = getBufferedImage(imageUrl);
+				if (image != null)
+				{
+					Map<String, Object> header = new HashMap<String, Object>();
+					header.put("width", image.getWidth() / 2);
+					header.put("height", image.getHeight() / 2);
+					header.put("type", entry.getValue().split("\\.")[1]);
+					// String imgPath = imgPaths.get(index);
+					// "d:\\text\\1.jpg"
+					header.put("content", WordUtil.inputStream2ByteArray(new FileInputStream(imageUrl), true));
+					map.put(entry.getKey(), header);
+				}
+
+			}
+			else
+			{
+				map.put(entry.getKey(), entry.getValue());
+			}
+		}
+		document = WordUtil.generateWord(map, document);
+	}
+	/**
+	 * 替换模版中的列表数据
+	 * @param bookMarkName 书签
+	 * @param content 数据
+	 * @param createRow 是否新建行
+	 */
+	public void fillTableAtBookMark(String bookMarkName, List<Map<String, String>> content,boolean createRow)
+	{
+		// rowNum来比较标签在表格的哪一行
+		int rowNum = 0;
+		// 首先得到标签
+		BookMark bookMark = bookMarks.getBookmark(bookMarkName);
+		if (bookMark == null)
+		{
+			return;
+		}
+		Map<String, String> columnMap = new HashMap<String, String>();
+		Map<String, Node> styleNode = new HashMap<String, Node>();
+		// 标签是否处于表格内
+		if (bookMark.isInTable())
+		{
+
+			// 获得标签对应的Table对象和Row对象
+			XWPFTable table = bookMark.getContainerTable();
+			XWPFTableRow row = bookMark.getContainerTableRow();
+			CTRow ctRow = row.getCtRow();
+			BigInteger Heightval =BigInteger.valueOf(360);
+			if(null!=ctRow&&ctRow.getTrPr().getTrHeightArray().length>0){
+				Heightval=ctRow.getTrPr().getTrHeightArray(0).getVal();
+			}
+			List<XWPFTableCell> rowCell = row.getTableCells();
+			for (int i = 0; i < rowCell.size(); i++)
+			{
+				columnMap.put(i + "", rowCell.get(i).getText().trim());
+
+				// 获取该单元格段落的xml，得到根节点
+				Node node1 = rowCell.get(i).getParagraphs().get(0).getCTP().getDomNode();
+
+				// 遍历根节点的所有子节点
+				for (int x = 0; x < node1.getChildNodes().getLength(); x++)
+				{
+					if (node1.getChildNodes().item(x).getNodeName().equals(BookMark.RUN_NODE_NAME))
+					{
+						Node node2 = node1.getChildNodes().item(x);
+
+						// 遍历所有节点为"w:r"的所有自己点，找到节点名为"w:rPr"的节点
+						for (int y = 0; y < node2.getChildNodes().getLength(); y++)
+						{
+							if (node2.getChildNodes().item(y).getNodeName().endsWith(BookMark.STYLE_NODE_NAME))
+							{
+
+								// 将节点为"w:rPr"的节点(字体格式)存到HashMap中
+								styleNode.put(i + "", node2.getChildNodes().item(y));
+							}
+						}
+					}
+					else
+					{
+						continue;
+					}
+				}
+			}
+
+			// 循环对比，找到该行所处的位置，删除改行
+			for (int i = 0; i < table.getNumberOfRows(); i++)
+			{
+				if (table.getRow(i).equals(row))
+				{
+					rowNum = i;
+					break;
+				}
+			}
+			table.removeRow(rowNum);
+			// 得到表格行数
+			int rcount = table.getNumberOfRows()-1;
+			if (createRow)
+			{
+				if((rcount<content.size())||(table.getNumberOfRows()==1)){
+					 for (int i = 0; i < content.size()-rcount; i++) {
+						 // 创建新的一行,单元格数是表的第一行的单元格数,
+						 // 后面添加数据时，要判断单元格数是否一致
+						 XWPFTableRow tableRow = table.createRow();
+						 CTTrPr trPr = tableRow.getCtRow().addNewTrPr();
+						 CTHeight ht = trPr.addNewTrHeight();
+						 ht.setVal(Heightval);
+					 }
+				}
+			}
+			rcount = table.getNumberOfRows();
+			for (int i = rowNum; i < rcount; i++)
+			{
+				XWPFTableRow newRow = table.getRow(i);
+
+				// //判断newRow的单元格数是不是该书签所在行的单元格数
+				// if(newRow.getTableCells().size() != rowCell.size()){
+				//
+				// //计算newRow和书签所在行单元格数差的绝对值
+				// //如果newRow的单元格数多于书签所在行的单元格数，不能通过此方法来处理，可以通过表格中文本的替换来完成
+				// //如果newRow的单元格数少于书签所在行的单元格数，要将少的单元格补上
+				// int sub= Math.abs(newRow.getTableCells().size() -
+				// rowCell.size());
+				// //将缺少的单元格补上
+				// for(int j = 0;j < sub; j++){
+				// newRow.addNewTableCell();
+				// }
+				// }
+
+				List<XWPFTableCell> cells = newRow.getTableCells();
+				if (content.size() > i - rowNum)
+				{
+					for (int j = 0; j < cells.size(); j++)
+					{
+						XWPFParagraph para = cells.get(j).getParagraphs().get(0);
+						XWPFRun run = para.createRun();
+						String value = content.get(i - rowNum).get(columnMap.get(j + "").trim());
+						if ( value!= null)
+						{
+							if(columnMap.get(j + "").startsWith("text")){
+								// 改变单元格的值，标题栏不用改变单元格的值
+								run.setText(value);
+	
+								// 将单元格段落的字体格式设为原来单元格的字体格式
+								if(null!=styleNode&&null!=styleNode.get(j + "")){
+									run.getCTR().getDomNode().insertBefore(styleNode.get(j + "").cloneNode(true), run.getCTR().getDomNode().getFirstChild());
+								}
+							}
+							if(columnMap.get(j + "").startsWith("img")){
+								String imageUrl =value;
+								Map<String,Object> imageMap=new HashMap<String,Object>();
+								if (StringUtils.isNotEmpty(imageUrl))
+								{
+									String type = imageUrl.substring(imageUrl.lastIndexOf(".")+1);
+									//imageUrl = Global.getUserfilesBaseDir() + imageUrl.substring(3);
+									BufferedImage image = getBufferedImage(imageUrl);
+									if (image != null)
+									{
+										imageMap.put("width", image.getWidth() / 2);
+										imageMap.put("height", image.getHeight() / 2);
+										imageMap.put("type", type);
+										try {
+											imageMap.put("content", WordUtil.inputStream2ByteArray(new FileInputStream(imageUrl), true));
+										} catch (FileNotFoundException e) {
+											e.printStackTrace();
+										}
+										int width = Integer.parseInt(imageMap.get("width").toString());
+										int height = Integer.parseInt(imageMap.get("height").toString());
+										int picType = WordUtil.getPictureType(imageMap.get("type").toString());
+										byte[] byteArray = (byte[]) imageMap.get("content");
+										ByteArrayInputStream byteInputStream = new ByteArrayInputStream(byteArray);
+										try
+										{
+											String ind = this.document.addPictureData(byteInputStream,picType);
+											int id =  this.document.getNextPicNameNumber(picType);
+											this.document.createPicture(ind, id, width, height,para); 
+//											String ind = this.document.addPictureData(byteInputStream, picType);
+//											this.document.createPicture(this.document.getAllPictures().size() - 1, width, height, para);
+										}
+										catch (Exception e){}
+									}
+								}
+							}
+							
+						}
+
+						para.setAlignment(ParagraphAlignment.CENTER);
+					}
+				}
+			}
+		}
+	}
+
+	public void replaceText(Map<String, String> bookmarkMap, String bookMarkName)
+	{
+
+		// 首先得到标签
+		BookMark bookMark = bookMarks.getBookmark(bookMarkName);
+		// 获得书签标记的表格
+		XWPFTable table = bookMark.getContainerTable();
+		// 获得所有的表
+		// Iterator<XWPFTable> it = document.getTablesIterator();
+
+		if (table != null)
+		{
+			// 得到该表的所有行
+			int rcount = table.getNumberOfRows();
+			for (int i = 0; i < rcount; i++)
+			{
+				XWPFTableRow row = table.getRow(i);
+
+				// 获到改行的所有单元格
+				List<XWPFTableCell> cells = row.getTableCells();
+				for (XWPFTableCell c : cells)
+				{
+					for (Entry<String, String> e : bookmarkMap.entrySet())
+					{
+						if (c.getText().equals(e.getKey()))
+						{
+
+							// 删掉单元格内容
+							c.removeParagraph(0);
+
+							// 给单元格赋值
+							c.setText(e.getValue());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	public void saveAs()
+	{
+		File newFile = new File("c:\\20161103201535_799_REPLACE.doc");
+		FileOutputStream fos = null;
+		try
+		{
+			fos = new FileOutputStream(newFile);
+		}
+		catch (FileNotFoundException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try
+		{
+			this.document.write(fos);
+			fos.flush();
+			fos.close();
+		}
+		catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * @Description: 保存文档
+	 */
+	public void saveDocument(XWPFDocument document, String savePath) throws Exception
+	{
+		FileOutputStream fos = new FileOutputStream(savePath);
+		document.write(fos);
+		fos.close();
+	}
+
+	public OutputStream save(OutputStream fos)
+	{
+		try
+		{
+			this.document.write(fos);
+			fos.flush();
+			fos.close();
+		}
+		catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return fos;
+	}
+
+	public List<String> getBookMarkStrings()
+	{
+		Collection<BookMark> bookmarkList = bookMarks.getBookmarkList();
+		List<String> list = new ArrayList<String>();
+		for (BookMark bookMark : bookmarkList)
+		{
+			if (bookMark.getBookmarkName().contains("table"))
+			{
+				list.add(bookMark.getBookmarkName());
+			}
+		}
+		return list;
+	}
+
+	/**
+	 * @Description: 跨列合并表格 table 表格 row
+	 */
+	public void mergeCellsHorizontal(XWPFTable table, int row, int fromCell, int toCell)
+	{
+		for (int cellIndex = fromCell; cellIndex <= toCell; cellIndex++)
+		{
+			XWPFTableCell cell = table.getRow(row).getCell(cellIndex);
+			if (cellIndex == fromCell)
+			{
+				// The first merged cell is set with RESTART merge value
+				cell.getCTTc().addNewTcPr().addNewHMerge().setVal(STMerge.RESTART);
+			}
+			else
+			{
+				// Cells which join (merge) the first one, are set with CONTINUE
+				cell.getCTTc().addNewTcPr().addNewHMerge().setVal(STMerge.CONTINUE);
+			}
+		}
+	}
+
+	/**
+	 * @Description: 得到Cell的CTTcPr,不存在则新建
+	 */
+	public CTTcPr getCellCTTcPr(XWPFTableCell cell)
+	{
+		CTTc cttc = cell.getCTTc();
+		CTTcPr tcPr = cttc.isSetTcPr() ? cttc.getTcPr() : cttc.addNewTcPr();
+		return tcPr;
+	}
+
+	/**
+	 * @Description: 跨行合并
+	 * @see http://stackoverflow.com/questions/24907541/row-span-with-xwpftable
+	 */
+	public void mergeCellsVertically(XWPFTable table, int col, int fromRow, int toRow)
+	{
+		for (int rowIndex = fromRow; rowIndex <= toRow; rowIndex++)
+		{
+			XWPFTableCell cell = table.getRow(rowIndex).getCell(col);
+			if (rowIndex == fromRow)
+			{
+				// The first merged cell is set with RESTART merge value
+				cell.getCTTc().addNewTcPr().addNewVMerge().setVal(STMerge.RESTART);
+			}
+			else
+			{
+				// Cells which join (merge) the first one, are set with CONTINUE
+				cell.getCTTc().addNewTcPr().addNewVMerge().setVal(STMerge.CONTINUE);
+			}
+		}
+	}
+
+	/**
+	 * 根据模版替换数据，生成word
+	 * @param bookMarkMap
+	 * @param fos bookMarkMap<书签,数据> 数据分类：
+	 *  一级分类：bookMarkMap中Object的分类 
+	 *  1、Map<String,String>(); 普通的单条数据数据类型 
+	 *  2、Map<String,Object>(); 复杂数据
+	 *  3、List<Map<String,String>>();普通的多条数据类型 
+	 * 二级分类：Map<String,Object>(); 中Object的分类
+	 */
+	@SuppressWarnings(
+	{ "unused", "unchecked" })
+	public void replaceTemplete(Map<String, Object> bookMarkMap, OutputStream fos) throws Exception
+	{
+		Set<String> markSet = bookMarkMap.keySet();
+		//用来盛放数据的map
+		Map<String,Object> datemap=new HashMap<String,Object>();
+		for (String bookMark : markSet)
+		{
+			Object object = bookMarkMap.get(bookMark);
+			if (object instanceof Map)
+			{
+				// 一级分类1或2 // 转换成map
+				Map<String, Object> map = (Map<String, Object>) object;
+			
+				datemap.putAll(map);
+				// 获取key
+				Set<String> keySet = map.keySet();
+				// 用来判断是否为复杂表单
+				boolean iscomplex = false;
+				// 存放需要删除的key,即循环数据的key
+				String complexKye = "";
+				for (String key : keySet)
+				{
+					// 判断是否含有表格
+					if (bookMark.equals(key))
+					{	
+						boolean repeat=false;
+						// 说明该条map的值是一个List
+						this.fillTableAtBookMark(key, (List<Map<String, String>>) map.get(key),repeat);
+						iscomplex = true;
+						complexKye = key;
+					}
+					if (key.startsWith("img"))
+					{
+						String imageUrl = (String) datemap.get(key);
+						if (StringUtils.isNotEmpty(imageUrl))
+						{
+							String type = imageUrl.substring(imageUrl.lastIndexOf(".")+1);
+							//imageUrl =  Global.getUserfilesBaseDir()  + imageUrl.substring(3);
+							BufferedImage image = getBufferedImage(imageUrl);
+							if (image != null)
+							{
+								Map<String, Object> header = new HashMap<String, Object>();
+								header.put("width", image.getWidth() / 2);
+								header.put("height", image.getHeight() / 2);
+								header.put("type", type);
+								header.put("content", WordUtil.inputStream2ByteArray(new FileInputStream(imageUrl), true));
+								datemap.put(key, header);
+							}
+						}
+					}
+					if(key.startsWith("mtext")){
+						String imageUrl = (String) datemap.get(key);
+						if (StringUtils.isNotEmpty(imageUrl))
+						{
+							if(imageUrl.lastIndexOf(".")!=-1){
+								String type = imageUrl.substring(imageUrl.lastIndexOf(".")+1);
+								//imageUrl =  Global.getUserfilesBaseDir() + imageUrl.substring(3);
+								BufferedImage image = getBufferedImage(imageUrl);
+								if (image != null)
+								{
+									Map<String, Object> header = new HashMap<String, Object>();
+									/*header.put("width", image.getWidth() );
+									header.put("height", image.getHeight() );*/
+									header.put("width", 200);
+									header.put("height", 40);
+									header.put("type", type);
+									header.put("content", WordUtil.inputStream2ByteArray(new FileInputStream(imageUrl), true));
+									datemap.remove(key);
+									datemap.put(key.substring(1), header);
+								}
+							}else{
+								datemap.remove(key);
+								datemap.put(key.substring(1), imageUrl);
+							}
+						}
+					}
+				}
+				// 如果是复杂表单，移除list
+				if (iscomplex)
+				{
+					datemap.remove(complexKye);
+				}
+				
+			}
+			if (object instanceof List)
+			{// 一级分类3
+				// 替换多条数据。
+				this.fillTableAtBookMark(bookMark, (List<Map<String, String>>) object,true);
+			}
+
+		}
+		// 替换普通数据
+		document = WordUtil.generateWord(datemap, document);
+		document=WordUtil.removeMakers(document);
+		// 写入文档
+		this.save(fos);
+	}
+	/**
+	 * 清理标识
+	 * @param document
+	 * @return
+	 */
+	public CustomXWPFDocument removeMakers(){
+		return WordUtil.removeMakers(this.document);
+	}
+	/**
+	 * @param args
+	 * @throws InvalidFormatException 
+	 * @throws FileNotFoundException 
+	 * @throws Exception
+	 */
+	public static void main(String[] args) throws Exception
+	{
+//		MSWordTool msw = new MSWordTool();
+//		CustomXWPFDocument xdoc=new CustomXWPFDocument();
+//		PoiWordUtil t=new PoiWordUtil();
+//		XWPFParagraph p = xdoc.createParagraph();  
+//		t.setParagraphAlignInfo(p, ParagraphAlignment.LEFT, TextAlignment.CENTER);  
+//		t.setParagraphSpacingInfo(p, true, "0", "0", "0", "0", true, "240",  
+//		            STLineSpacingRule.AUTO);  
+//		XWPFRun pRun = t.getOrAddParagraphFirstRun(p, false, false);  
+//	    t.setParagraphRunFontInfo(p, pRun, "1.下列实验操作中，正确的是(    ) ", "宋体", "22");  
+//	    pRun = t.getOrAddParagraphFirstRun(p, true, true);  
+//	    t.setParagraphRunFontInfo(p, pRun, "A", "宋体", "22");  
+//	    pRun = t.getOrAddParagraphFirstRun(p, true, false);  
+//	    t.setParagraphRunFontInfo(p, pRun, StringUtils.leftPad("B.", 10), "宋体",  
+//	            "22");  
+//	    pRun = t.getOrAddParagraphFirstRun(p, true, true);  
+//	    t.setParagraphRunFontInfo(p, pRun, "C", "宋体", "22");  
+//	    pRun = t.getOrAddParagraphFirstRun(p, true, false);  
+//	    t.setParagraphRunFontInfo(p, pRun, StringUtils.leftPad("D.", 10), "宋体",  
+//	            "22");  
+//	    CTBookmark bookStart = p.getCTP().addNewBookmarkStart();  
+//	    BigInteger markId = BigInteger.valueOf(1);  
+//        bookStart.setId(markId);  
+//        bookStart.setName("book");  
+//        CTMarkupRange bookEnd = p.getCTP().addNewBookmarkEnd();  
+//        bookEnd.setId(markId);
+//	    String filePath = "f:/sys_" + System.currentTimeMillis()  
+//        + ".docx";  
+//	    t.saveDocument(xdoc, filePath); 
+//	    
+		/*MSWordTool msw = new MSWordTool();
+		XWPFDocument xdoc = new XWPFDocument();
+
+		XWPFParagraph p = xdoc.createParagraph();
+		// XWPFTable table = xdoc.createTable(21, 4);
+		msw.setTemplate("c:\\temple.docx");// new_table
+		List<String> bookMarkStrings = msw.getBookMarkStrings();
+		// for (String string : bookMarkStrings) {
+		// if("new_table".equals(string)){
+		//
+		// }
+		// }
+		List<XWPFParagraph> paragraphs = msw.document.getParagraphs();
+		for (XWPFParagraph xwpfParagraph : paragraphs)
+		{
+			List<CTBookmark> bookmarkStartList = xwpfParagraph.getCTP().getBookmarkStartList();
+			for (CTBookmark Bookmark : bookmarkStartList)
+			{
+				// if("new_table".equals(Bookmark.getName())){
+				// msw.document.setTable(xwpfParagraph.getIndentationFirstLine(),
+				// table);
+				//
+				// }
+				// System.out.println(Bookmark.getName());
+			}
+		}
+		BookMark bookmark = msw.bookMarks.getBookmark("new_table");
+		XWPFTable table = bookmark.getContainerTable();
+		XWPFTableRow tablerow = bookmark.getContainerTableRow();
+		if (table != null)
+		{
+			for (int i = 0; i < 10; i++)
+			{
+				// 创建新的一行,单元格数是表的第一行的单元格数,
+				// 后面添加数据时，要判断单元格数是否一致
+				XWPFTableRow tableRow = table.createRow();
+				CTTrPr trPr = tableRow.getCtRow().addNewTrPr();
+				CTHeight ht = trPr.addNewTrHeight();
+				ht.setVal(BigInteger.valueOf(360));
+			}
+			// 得到该表的所有行	
+			int rcount = table.getNumberOfRows();
+			// for(int i = 0 ;i < rcount; i++){
+			// XWPFTableRow row = table.getRow(i);
+			// while (row.getTableCells().size()<6) {
+			// row.addNewTableCell();
+			// }
+			// // //获到改行的所有单元格
+			// // List<XWPFTableCell> cells = row.getTableCells();
+			// // for(XWPFTableCell c : cells){
+			// // if(i==0){
+			// // c.setText("表头");
+			// // }else{
+			// // c.setText("内容");
+			// // }
+			// // }
+			// }
+
+			msw.mergeCellsHorizontal(table, 1, 0, 3);
+			// msw.mergeCellsHorizontal(table,2,2,4);
+			// msw.mergeCellsVertically(table, 2, 1,2);
+			// msw.mergeCellsVertically(table, 4, 2, 4);
+			// msw.mergeCellsHorizontal(table,2,6,7);
+		}
+
+		try
+		{
+			// msw.saveAs();
+			msw.saveDocument(msw.document, "c:\\aaa.doc");
+		}
+		catch (Exception e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		// long startTime = System.currentTimeMillis();
+		// MSWordTool changer = new MSWordTool();
+		// changer.setTemplate("c:\\20161103201535_799.doc");
+		// Map<String,String> content = new HashMap<String,String>();
+		// content.put("TEXT_GCMC", "格式规范、标准统一、利于阅览");
+		// content.put("TEXT_SCLX", "规范会议操作、提高会议质量");
+		// content.put("TEXT_SJTC", "公司会议、部门之间业务协调会议");
+		//
+		// content.put("TEXT_BLC", "**有限公司");
+		// content.put("TEXT_SCLX", "机场路2号");
+		// content.put("TEXT_SJTH", "3021170207");
+		// content.put("TEXT_SSRQ", "水泥制造");
+		// content.put("TEXT_SCLX", "1.085");
+		// content.put("TEXT_RWLY", "0.906");
+		// content.put("TEXT_GCMC", "0.433");
+		// content.put("TEXT_GCMC", "0.675");
+		//
+		// content.put("TEXT_GCMC", "**有限公司");
+		// content.put("TEXT_GCMC", "机场路2号");
+		// changer.replaceBookMark(content);
+		//
+		//
+		// //替换表格标签
+		// List<Map<String ,String>> content2 = new ArrayList<Map<String,
+		// String>>();
+		// Map<String, String> table1 = new HashMap<String, String>();
+		//
+		// table1.put("MONTH", "*月份");
+		// table1.put("SALE_DEP", "75分");
+		// table1.put("TECH_CENTER", "80分");
+		// table1.put("CUSTOMER_SERVICE", "85分");
+		// table1.put("HUMAN_RESOURCES", "90分");
+		// table1.put("FINANCIAL", "95分");
+		// table1.put("WORKSHOP", "80分");
+		// table1.put("TOTAL", "85分");
+		//
+		// for(int i = 0; i < 3; i++){
+		// content2.add(table1);
+		// }
+		// changer.fillTableAtBookMark("Table" ,content2);
+		// changer.fillTableAtBookMark("month", content2);
+		//
+		// //表格中文本的替换
+		// Map<String, String> table = new HashMap<String, String>();
+		// table.put("CUSTOMER_NAME", "**有限公司");
+		// table.put("ADDRESS", "机场路2号");
+		// table.put("USER_NO", "3021170207");
+		// table.put("tradeName", "水泥制造");
+		// table.put("PRICE_1", "1.085");
+		// table.put("PRICE_2", "0.906");
+		// table.put("PRICE_3", "0.433");
+		// table.put("NUM_PRICE", "0.675");
+		// changer.replaceText(table,"Table2");
+
+		// 保存替换后的WORD
+		// changer.saveAs();
+		// System.out.println("time=="+(System.currentTimeMillis() -
+		// startTime));
+*/
+		FileOutputStream fos = new FileOutputStream("/Users/admin/Desktop/模板/报告createss.docx");
+		MSWordTool changer = new MSWordTool();
+		changer.setTemplate("/Users/admin/Desktop/模板/报告test.docx");
+		 Map<String, Object> map = new HashMap<String, Object>();
+		 Map<String, Object> table = new HashMap<String, Object>();
+		 table.put("${jl_nmu}", "DG1806422");
+		 table.put("${date}", "2018-06-27");
+		 table.put("${p_name}", "压实股钢丝绳");
+		 table.put("${p_stand}", "YB/T 5359-2010");
+		 table.put("${wth}", "WG1806422");
+		 table.put("${standard}", "20");
+		 table.put("${configuration}","35(W)xK7");
+		 table.put("${p_num}", "18B356(1~14)");
+		 table.put("${qd}", "1960");
+		 table.put("${type}", "光面");
+		 table.put("${nf}", "左同向捻 sS");
+		 table.put("${wd}", "18°C");
+		 map.put("tablue", table);
+		 changer.replaceTemplete(map, fos);
+	}
+	
+}

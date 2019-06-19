@@ -1,0 +1,117 @@
+package com.hbsi.user.controller;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+/**
+ * @description 用户管理接口类
+ * @author cxh
+ * @version 1.0
+ *
+ */
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.domain.User;
+import com.hbsi.response.Response;
+import com.hbsi.user.service.UserService;
+@RestController
+@RequestMapping("user")
+public class UserController {
+	@Resource
+	private UserService userService;
+	
+	/**
+	 * @description 添加用户 save user 
+	 * @param user
+	 * @return
+	 */
+	@PostMapping("saveUser")
+	public Response<User> saveUser(@RequestBody User user){
+		return userService.saveUser(user);
+	}
+	/**
+	 * @description update user 修改用户
+	 * @param user
+	 * @return
+	 */
+	@PostMapping("updateUser")
+	public Response<User> updateUser(@RequestBody User user){
+		return userService.updateUser(user);
+	}
+	/**
+	 * @description user login 用户登录
+	 * @param user
+	 * @return
+	 * 传入参数  detail param: username,password
+	 */
+	@PostMapping("login")
+	public Response<User> login(@RequestBody User user){
+		return userService.login(user);
+	}
+	/**
+	 * @description user list
+	 * @return
+	 */
+	@GetMapping("selectUserList")
+	public Response<List<User>> selectUserList(){
+		return userService.selectUserList();
+	}
+	/**
+	 * @description delete user
+	 * @param userId
+	 * @return
+	 */
+	@GetMapping("deleteUser")
+	public Response<Integer> deleteUser(Integer userId){
+		return userService.deleteUser(userId);
+	}
+	/**
+	 * @description update user password 修改用户密码
+	 * @param info
+	 * @return
+	 */
+	@PostMapping("updateUserPassword")
+	public Response<User> updateUserPassword(@RequestBody String info){
+		/**
+		 * 前端与接口间的数据交互使用的数据格式是json字符串
+		 * info是一个json字符串，将其转换为json对象格式，按照键值对的方式获取参数值
+		 * info格式为：
+		 * {"id":1,"oldPassword":"123456","newPassword":"123"}
+		 * 如果json中的参数与实体类(User就是一个实体类)中的成员变量相对应，则可使用实体类直接接收参数，例如添加和修改功能中的参数传入方式
+		 */
+		JSONObject json=JSON.parseObject(info);
+		String username=json.getString("username");
+		String oldPassword=json.getString("oldPassword");
+		String newPassword=json.getString("newPassword");
+		return userService.updateUserPassword(username, oldPassword, newPassword);
+	}
+	/**
+	 * @description reset user password
+	 * @param userId
+	 * @return
+	 */
+	@PostMapping("resetUserPassword")
+	public Response<User> resetUserPassword(@RequestBody String info){
+		JSONObject json=JSON.parseObject(info);
+		String username=json.getString("username");
+		String password=json.getString("password");
+		return userService.resetUserPassword(username, password);
+	}
+	
+	/**
+	 * @description valid user
+	 * @param info
+	 * @return
+	 */
+	@PostMapping("validUser")
+	public Response<User> validUser(@RequestBody String info){
+		return userService.validUser(info);
+	}
+}

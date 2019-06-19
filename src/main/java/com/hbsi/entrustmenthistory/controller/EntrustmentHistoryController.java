@@ -1,0 +1,77 @@
+package com.hbsi.entrustmenthistory.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.hbsi.domain.EntrustmentHistory;
+import com.hbsi.entrustmenthistory.service.EntrustmentHistoryService;
+import com.hbsi.response.Response;
+
+/**
+ * 
+ * @author ljizhi
+ * @version 12-6
+ *
+ */
+@RestController
+@RequestMapping("/entrustmentHistory")
+public class EntrustmentHistoryController {
+
+	@Autowired
+	private EntrustmentHistoryService entrustmentHistoryService;
+
+	/**
+	 * 通过主键删除
+	 * 
+	 * @param id
+	 * @return
+	 */
+	@PostMapping("/deleteEntrustmentHistory")
+	public Response<Integer> deleteEntrustmentHistory(@RequestBody Integer id) {
+		return entrustmentHistoryService.deleteEntrustmentHistory(id);
+
+	}
+
+	/**
+	 * 向委托历史表添加信息
+	 * 
+	 * @param record
+	 * @return
+	 */
+	@PostMapping("/saveEntrustmentHistory")
+	public Response<Integer> saveEntrustmentHistory(@RequestBody EntrustmentHistory record) {
+		return entrustmentHistoryService.saveEntrustmentHistory(record);
+	}
+
+	
+
+	/**
+	 * 通过主键(ID)查询委托历史表
+	 * 
+	 * @param id
+	 * @return
+	 */
+	@PostMapping("/selectEntrustmentHistory")
+	public Response<EntrustmentHistory> selectEntrustmentHistory(@RequestBody Integer id) {
+		return entrustmentHistoryService.selectEntrustmentHistory(id);
+	}
+
+	
+
+	/**
+	 * 通过主键(ID)更新委托历史表
+	 * 
+	 * @param record
+	 * @return
+	 */
+	@PostMapping("/updateEntrustmentHistory")
+	public Response<Integer> updateEntrustmentHistory(@RequestBody EntrustmentHistory record) {
+		return entrustmentHistoryService.updateEntrustmentHistory(record);
+	}
+
+}

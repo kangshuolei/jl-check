@@ -1,0 +1,44 @@
+package com.hbsi.steel.service;
+
+import java.util.List;
+
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.response.Response;
+
+/**
+ * 钢丝报告处理
+ * @author lixuyang
+ * @version 1.0，2018-09-29
+ *
+ */
+public interface SteelService {
+	
+	/**
+	 * 调入委托单数据
+	 * @param info
+	 * @return
+	 */
+	Response<List<SampleRecord>> selectSteelData(String info);
+	
+	/**
+	 * 查询钢丝数据
+	 * @param info
+	 * @return
+	 */
+	Response<List<SteelWireData>> selectSteelWireList(String info);
+	
+	/**
+	 * 添加钢丝数据
+	 * @param list
+	 * @return
+	 */
+	Response<Integer> saveSteelWire(List<SteelWireData> list);
+	 
+	/**
+	 * 修改钢丝数据（判定）
+	 * @param list
+	 * @return
+	 */
+	Response<Integer> updateSteelWire(List<SteelWireData> list);
+}

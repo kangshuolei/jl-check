@@ -1,0 +1,311 @@
+package com.hbsi.thickwire.service.impl;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.annotation.Resource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.dao.DiameterDeviationMapper;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.ReverseBendingMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.StrengthDeviationMapper;
+import com.hbsi.dao.TensileStrengthMapper;
+import com.hbsi.dao.WireAttributesGbt200672017Mapper;
+import com.hbsi.dao.WireAttributesGbt201182017Mapper;
+import com.hbsi.dao.WireDataMapper;
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.domain.DiameterDeviation;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.domain.StrengthDeviation;
+import com.hbsi.domain.TensileStrength;
+import com.hbsi.domain.WireAttributesGBT89182006;
+import com.hbsi.domain.WireAttributesGbt200672017;
+import com.hbsi.domain.WireAttributesGbt201182017;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.entity.WireRopeData;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.thickwire.service.ThickWireService;
+import com.hbsi.util.Arith;
+import com.hbsi.wire.service.WireRopeService;
+
+
+@Service
+public class ThickWireServiceImpl implements ThickWireService {
+	private Logger logger=LoggerFactory.getLogger(WireRopeService.class);
+	@Autowired
+	private WireRopeMapper wireRopeMapper;
+	@Autowired
+	private WireDataMapper wireDataMapper;
+	//GBT20067-2017 属性
+	@Autowired
+	private WireAttributesGbt200672017Mapper attMapper;
+	@Autowired
+	private WireRopeService wireRopeService;
+    @Autowired
+    private DiameterDeviationMapper diameterDeviationMapper;
+	 /*抗拉强度允许值*/
+	@Autowired
+	private TensileStrengthMapper tensileStrengthMapper;
+	/*扭转和弯曲次数*/
+	@Autowired
+	private ReverseBendingMapper reverseBendingMapper;
+	/**
+	 * 查询和创建钢丝绳报告
+	 */
+	public Response<WireRope> judgeThickWire(WireRope wireRope) {
+		if(wireRope==null) {
+			logger.info("传入数据为空");
+		}else {
+			/*计算钢丝破断拉力*/
+			double wireBreak=wireRopeService.calWireBreakTensile(wireRope);
+			wireBreak=Math.round(wireBreak*100)/100;
+			/**
+			 * 计算钢丝绳最小破断拉力总和
+			 * K*D*D*R0/1000
+			 * */
+			//查询钢丝绳系数
+			WireAttributesGbt200672017 att=attMapper.selectTanningByStructure(wireRope.getStructure());
+			double minBreakForce=att.getMinimumBreakingForce();
+			double diamate=Double.parseDouble(wireRope.getSpecification());//钢丝绳直径
+			double strengthLevel=Double.parseDouble(wireRope.getStrengthLevel());
+			 double breakValue=Arith.div(Arith.mul(Arith.mul(minBreakForce, Math.pow(diamate, 2)), (double)strengthLevel),1000.0);
+			double wireBreakAll=breakValue*att.getTanningLossFactor();//钢丝绳最小破断拉力总和
+			wireBreakAll=Math.round(wireBreakAll*100)/100;
+			wireRope.setMinBreakTensile(wireBreakAll);
+			wireRope.setMeasureBreakTensile(wireBreak);
+			/*修改钢丝绳数据*/
+			wireRopeService.saveWireData(wireRope);
+			
+			Map<Double, int[]> resultMap=judgeSeparate(wireRope);
+			StringBuilder sb=new StringBuilder();
+			int[] all=resultMap.get(0d);
+			Integer allowedNotQualified=(int) Math.round(wireRope.getWireDataList().size()*0.05);
+			if(all!=null&&all.length!=0) {
+				if(all[0]>0) {
+					sb.append("不合格");
+				}else if(all[1]>allowedNotQualified) {
+					sb.append("不合格");
+				}else if(all[1]>allowedNotQualified) {
+					sb.append("不合格");
+			   }else if(all[2]>allowedNotQualified) {
+					sb.append("不合格");
+			   }else {
+				   sb.append("合格");
+			   }
+				
+			Iterator<Double> it=resultMap.keySet().iterator();
+			while(it.hasNext()) {
+				double ndiamate=it.next();
+				if(ndiamate!=0&&ndiamate!=0.0) {
+					int[] re=resultMap.get(ndiamate);
+					int i=0;
+					for(;i<re.length;i++) {
+						if(re[i]!=0) {//有低值或者不合格则跳出本层循环
+							break;
+						}
+					}
+					if(i>=re.length) {
+						continue;//若该公称直径下没有不合格或者低值则跳出本次循环
+					}else {
+						//若该公称直径下有不合格则显示
+						sb.append("Φ").append(ndiamate).append("钢丝[");
+						
+						if(re[1]>0) {
+							sb.append("直径有").append(re[1]).append("根不合格");
+						}
+						if(re[2]>0) {
+							sb.append("抗拉强度有").append(re[2]).append("根不合格");
+						}
+						if(re[3]>0) {
+							sb.append("扭转次数有").append(re[3]).append("根不合格");
+						}
+					}
+					sb.append("] ");
+				}
+			}
+			wireRope.setEvaluation(sb.toString());
+			try {
+				int i=wireRopeMapper.updateRopeEvaluatuion(wireRope);
+				System.out.println("综合判定结果保存成功");
+				WireRope w=new WireRope();
+				w=wireRopeMapper.selectByPrimaryKey(wireRope.getId());
+				System.out.println(w.getEvaluation());
+			} catch (Exception e) {
+				System.out.println("综合判定结果保存失败了");
+				logger.error("钢丝绳判定结果保存失败,{}",e.getLocalizedMessage());
+				throw new BaseException(ExceptionEnum.WIREROPE_SAVE_ERROR);
+			}
+		}
+	}
+	return new Response<WireRope>(wireRope);
+}
+	    public Map<Double, int[]> judgeSeparate(WireRope wireRope){
+
+			//查询钢丝绳系数
+	    	WireAttributesGbt200672017 att=attMapper.selectTanningByStructure(wireRope.getStructure());
+			
+			//钢丝绳的股类型
+			List<WireData> dataList=wireRope.getWireDataList();
+			/**
+			 * 判断钢丝绳表面状态
+			 */
+			String surface1=wireRope.getSurfaceState();
+			String surface="";
+			if(surface1.contains("光面")) {
+				surface="UB";
+			}else if(surface1.contains("A类")||surface1.contains("A级")){
+				surface="A";
+			}else if(surface1.contains("B类")||surface1.contains("B级")){
+				surface="UB";
+			}else if(surface1.contains("AB类")||surface1.contains("AB级")){
+				surface="AB";
+			}else if(surface1.contains("光面及B类")||surface1.contains("光面及B级")) {
+				surface="UB";
+			}
+			//钢丝绳的抗拉强度级别
+			Integer strengthLevel=Integer.parseInt(wireRope.getStrengthLevel());
+			/**
+			 * 按照试验钢丝数据公称直径组合数据
+			 */
+			Map<Double, List<WireData>> dataMap=new HashMap<>();
+			List<WireData> l=null;
+			for(WireData wireData:dataList) {
+				if(!dataMap.containsKey(wireData.getnDiamete())) {
+					l=new ArrayList<WireData>();
+					l.add(wireData);
+				}else {
+					l=dataMap.get(wireData.getnDiamete());
+					l.add(wireData);
+				}
+				dataMap.put(wireData.getnDiamete(), l);
+			}
+			
+			//公称直径
+			double ndiamate=0;
+			//钢丝最小破断拉力系数
+			DiameterDeviation dd=null;//钢丝直径允许最大偏差  根据公称直径所在范围进行查询 
+			//查询扭转弯曲次数的最低值条件
+			ReverseBending rb=new ReverseBending();
+			rb.setStandardNum(wireRope.getJudgeStandard());
+			rb.setRatedStrength(strengthLevel+"");
+			rb.setSurfaceState(surface);
+			//抗拉强度允许偏差值判断
+			WireRopeData wireRopeData=new WireRopeData();
+			wireRopeData.setStandardNum(wireRope.getJudgeStandard());
+			/**
+			 * 定义数组，保存判定结果
+			 */
+			Map<Double, int[]> resultMap=new HashMap<Double,int[]>();
+			int[] all=new int[4];//保存总的结果
+			/**
+			 * 循环数据，进行判定
+			 */
+			Iterator<Double> it=dataMap.keySet().iterator();
+			while(it.hasNext()) {
+				ndiamate=it.next();
+				//根据公称直径查询抗拉强度允许偏差值
+				wireRopeData.setNdiamete(ndiamate);
+				wireRopeData.setSurface(surface);
+				//查询公称直径对应的扭转弯曲次数
+				 rb.setfDiamete(ndiamate);
+//				 if(wireRope.getStructure().contains("K")) {
+//					rb.setType("P"); 
+//				 }else {
+//					 rb.setType("C");
+//				 }
+				List<ReverseBending> rlist=reverseBendingMapper.selectRBDataByCon(rb);
+				int[] d=new int[2];
+				for(ReverseBending r:rlist) {
+					//c 圆股钢丝
+					if("C".equals(r.getType())) {
+						d[0]=r.getValueRob();
+					//p压实股钢丝
+					}else if("P".equals(r.getType())) {
+						d[1]=r.getValueRob();
+					}
+				}
+				//直径判断：允许有不超过5%超出上述规定而不超过上述规定的50%
+				DiameterDeviation diameterDeviation=diameterDeviationMapper.selectDiaByBlurType(wireRopeData);
+				Double dDeviation = diameterDeviation.getValue();
+				//用户记录该直径每项的判定结果int[0]直径超过50%的根数  int[1]直径不合格根数  int[2]抗拉强度不合格根数 int[3]扭转不合格根数
+				int[] re=new int[4];  
+				List<WireData> dlist=dataMap.get(ndiamate);
+				//求得压实股钢丝的抗拉强度：平均抗拉强度值strengthForJudge
+				double sumStrength=0;
+				double averageStrength;
+				for(WireData wireData:dlist) {
+					sumStrength=+wireData.getTensileStrength();
+				}
+				averageStrength=Arith.div(sumStrength, (double) dlist.size());
+				Integer strengthForJudge = (int)Math.round(Arith.mul(averageStrength, 0.92));
+				for(WireData wireData:dlist) {
+					//直径判定
+					double diamate=wireData.getDiamete();
+					if(Math.abs(diamate-ndiamate)>dDeviation*1.5) {
+						re[0]++;
+						all[0]++;
+					}else if(Math.abs(diamate-ndiamate)>dDeviation) {
+						re[1]++;
+						all[1]++;
+					}
+					//抗拉强度判定
+					double strength=wireData.getTensileStrength();
+					if(wireRope.getStructure().contains("K")) {
+						if(strength<strengthForJudge) {
+							re[2]++;//抗拉强度不合格
+							all[2]++;
+							}
+						if(wireData.getTurnTimes()<d[1]) {
+							re[3]++;
+							all[3]++;
+						}
+					    }else {
+						if(strengthLevel-strength>50) {
+							re[2]++;//抗拉强度不合格
+							all[2]++;
+					          }
+						if(wireData.getTurnTimes()<d[0]) {
+							re[3]++;
+							all[3]++;
+						}
+					    }
+					//扭转次数判定  先判断是圆形钢丝还是压实股钢丝
+			}
+			resultMap.put(ndiamate,re);
+	    }
+		resultMap.put(0d, all);
+		return resultMap;
+	    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

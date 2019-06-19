@@ -1,0 +1,136 @@
+package com.hbsi.wire.controller;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.response.Response;
+import com.hbsi.wire.service.WireRopeService;
+
+/**
+ * 钢丝绳报告
+ * @author cxh
+ *
+ */
+@RestController
+@RequestMapping("wireRope")
+public class WireRopeController {
+	@Resource
+	private WireRopeService wireRopeService;
+	/**
+	 * 模糊查询委托单列表
+	 * @param judgeStandard
+	 * @param enstrustmentNumber
+	 * @return
+	 */
+	@GetMapping("selectWireEntList")
+	public Response<List<String>> selectWireEntList(String judgeStandard,String enstrustmentNumber){
+		return wireRopeService.selectWireEntList(judgeStandard, enstrustmentNumber);
+	}
+	/**
+	 * 查询或打开钢丝绳报告
+	 * @param entrustmentNumber
+	 * @return
+	 */
+	@GetMapping("seleteOrCreateWireRope")
+	public Response<WireRope> seleteOrCreateWireRope(String entrustmentNumber){
+		return wireRopeService.selectOrCreateWR(entrustmentNumber);
+	}
+	/**
+	 * 调入数据
+	 * @param entrustmentNumber
+	 * @return
+	 */
+	@PostMapping("selectWireData")
+	public Response<List<WireData>> selectWireData(@RequestBody WireRope wireRope){
+		return wireRopeService.selectWireData(wireRope);
+	}
+	/**
+	 * 判定
+	 * @param info
+	 * @return
+	 */
+	@PostMapping("wireJudge")
+	public Response<WireRope> wireJudge(@RequestBody WireRope wireRope){
+//		System.out.println("*******8"+wireRope);
+//		wireRope.setJudgeStandard("GB/T 20067-2017");
+//		wireRope.setJudgeStandard("GB/T 20118-2017");
+		return wireRopeService.judgeWireRopeAll(wireRope);
+	}
+	/**
+	 * 调整检测标准
+	 * @param enstrustmentNumber
+	 * @param standardNumber
+	 * @return
+	 */
+	@GetMapping("updateStandard")
+	public Response<WireRope> updateStandard(String enstrustmentNumber,String standardNumber){
+		return wireRopeService.updateStandard(enstrustmentNumber, standardNumber);
+	}
+	/**
+	 * 调整直径
+	 * @param wireRope
+	 * @return
+	 */
+	@PostMapping("updateDiamate")
+	public Response<WireRope> updateDiamate(@RequestBody WireRope wireRope){
+		return wireRopeService.updateDiamate(wireRope);
+	}
+	/**
+	 * 提交数据
+	 * @param wireRope
+	 * @return
+	 */
+	@PostMapping("saveWireRope")
+	public Response<WireRope> saveWireRope(@RequestBody WireRope wireRope){
+		return wireRopeService.saveWire(wireRope);
+	}
+	/**
+	 * 根据试验钢丝类别，返回钢丝直径数组
+	 * @param trialClass
+	 * @return
+	 */
+	@GetMapping("getData")
+	public Response<List<Double>> getData(String trialClass){
+		if(trialClass==null) {
+			return new Response<List<Double>>("00001111", "试验钢丝类别空", null);
+		}else {
+			List<Double> re=new ArrayList<>();
+			try {
+				List<String[]> l=new ArrayList<>();
+				String[] str=trialClass.split(",");
+				for(int i=0;i<str.length;i++) {
+					String s=str[i];
+					String[] ss=s.split("\\*");
+					String[] sa=ss[1].split("/");
+					ss[1]=sa[0];
+					l.add(ss);
+				}
+				for(int i=0;i<l.size();i++) {
+					String[] ss=l.get(i);
+					if(ss!=null) {
+						Integer t1=Integer.parseInt(ss[1]);
+						int j=0;
+						Double d=Double.parseDouble(ss[0]);
+						while(j<t1) {
+							re.add(d);
+							j++;
+						}
+					}
+				}
+			} catch (Exception e) {
+				return new Response<List<Double>>("00001111", "试验钢丝类别输入不正确", null);
+			}
+			return new Response<List<Double>>(re);
+		}
+	}
+}

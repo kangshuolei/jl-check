@@ -1,0 +1,833 @@
+package com.hbsi.export.service.impl;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ResourceUtils;
+
+import com.fasterxml.jackson.core.util.VersionUtil;
+import com.hbsi.breakconclusion.service.BreakConclusionService;
+import com.hbsi.common.utils.word.MSWordTool;
+import com.hbsi.dao.BreakConclusionMapper;
+import com.hbsi.dao.DiameterDeviationMapper;
+import com.hbsi.dao.ReverseBendingMapper;
+import com.hbsi.dao.StrengthDeviationMapper;
+import com.hbsi.dao.UserMapper;
+import com.hbsi.dao.VersonNumberMapper;
+import com.hbsi.dao.WireDataMapper;
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.dao.WireStandardMapper;
+import com.hbsi.domain.BreakConclusion;
+import com.hbsi.domain.DiameterDeviation;
+import com.hbsi.domain.ExportDomain;
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.domain.StrengthDeviation;
+import com.hbsi.domain.User;
+import com.hbsi.domain.VersonNumber;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.domain.WireStandard;
+import com.hbsi.entity.WireRopeData;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.export.service.ReportExportService;
+import com.hbsi.response.Response;
+import com.hbsi.util.Arith;
+
+@Service
+public class ReportExportServiceImpl implements ReportExportService {
+
+	/**
+	 * author:shazhou
+	 */
+	@Autowired
+	private VersonNumberMapper versonNumberMapper;
+	@Autowired
+	private WireRopeMapper wireRopeMapper;
+	@Autowired
+	private WireDataMapper wireDataMapper;
+	@Autowired
+	private DiameterDeviationMapper DDMapper;
+	@Autowired
+	private BreakConclusionMapper breakConclusionMapper;
+	@Autowired
+	private ReverseBendingMapper RBMapper;
+	@Autowired
+	private StrengthDeviationMapper sdMapper;
+	@Autowired
+	private WireStandardMapper wsMapper;
+	@Autowired
+	private BreakConclusionService breakConclusionService;
+	@Autowired
+	private UserMapper userMapper;
+
+	Logger logger = LoggerFactory.getLogger(this.getClass());
+
+	public void ExportReport(String entrustNum, HttpServletResponse response) throws IOException {
+		File file = File.createTempFile("resultReport", ".docx");
+		file.deleteOnExit();
+		FileOutputStream fos = new FileOutputStream(file);
+		MSWordTool changer = new MSWordTool();
+//		File templateFile = ResourceUtils.getFile("classpath:templates/steelWireReport.docx");
+//		changer.setTemplate(templateFile.getAbsolutePath());
+		InputStream stream = getClass().getClassLoader().getResourceAsStream("templates/steelWireReport.docx");
+		changer.setTemplate(stream);
+		Map<String, Object> map = new HashMap<String, Object>();
+		Integer message = 0;
+		Map<String, Object> table1 = new HashMap<>();
+		Map<String, Object> table2 = new HashMap<>();
+		Map<String, Object> table3 = new HashMap<>();
+		try {
+			table1 = HeadOfReport(entrustNum);
+			logger.info("report表头信息获得成功");
+		} catch (Exception e) {
+			logger.error("report表头数据获得失败原因是：{}", e);
+			throw new BaseException(ExceptionEnum.HEADOFREPORT_FAILED);
+		}
+		try {
+			table2 = BreakStockData(entrustNum);
+			logger.info("report中的拆股实验数据获得成功");
+		} catch (Exception e) {
+			logger.error("report拆股实验信息获得失败，原因是：{}", e);
+			throw new BaseException(ExceptionEnum.BREAKSTOCKDATA_FAILED);
+		}
+		/**
+		 * 将table1和table2数据放到一个map中，开始调用替换模板的算法
+		 */
+		table3.putAll(table1);
+		table3.putAll(table2);
+		map.put("table", table3);
+		try {
+			changer.replaceTemplete(map, fos);
+			logger.info("调用工具类生成报告成功");
+		} catch (Exception e) {
+			logger.error("调用工具类生成报告失败，原因是{}", e);
+			throw new BaseException(ExceptionEnum.USE_EXCELUTIL_FAILED);
+		}
+		/**
+		 * 生成流文件传递给前端
+		 */
+		ServletOutputStream out = response.getOutputStream();
+		File file2 = ResourceUtils.getFile(file.getAbsolutePath());
+		FileInputStream is = new FileInputStream(file2);
+		// 设置文件为.doc格式(只查到·doc对应的contentType类型，没有找到·docx对应的，不确定能用否)
+		response.setContentType("application/msword");
+		// 设置文件名
+		String fileName = "钢丝绳检测报告" + ".docx";
+		response.addHeader("Content-Disposition", "attachment;fileName="+ new String(fileName.getBytes("UTF-8"), "ISO8859_1"));
+		try {
+			int len = 0;
+//			byte[] bt = new byte[1024];
+			while ((len = is.read()) != -1) {
+				out.write(len);
+			}
+//			byte[] bt=new byte[is.available()];
+//			out.write(bt);
+			out.close();
+			is.close();
+			message = 1;
+		} catch (Exception e) {
+		}
+	}
+
+	/**
+	 * 生成Json数据传递给前端
+	 */
+	public Response ExportReportJson(String entrustNum) throws IOException {
+		if(entrustNum == null||"".equals(entrustNum)) {
+			return new Response("000017120","输入的委托单号为空",null);
+		}else {
+			
+			Map<String, Object> map = new HashMap<String, Object>();
+			Integer message = 0;
+			Map<String, Object> table1 = new HashMap<>();
+			Map<String, Object> table2 = new HashMap<>();
+			List<BreakConclusion> breakConclusionList = new ArrayList<>();
+			try {
+				table1 = HeadOfReportForJason(entrustNum);
+				logger.info("report表头信息获得成功");
+			} catch (Exception e) {
+				logger.error("report表头数据获得失败原因是：{}", e);
+				throw new BaseException(ExceptionEnum.HEADOFREPORT_FAILED);
+			}
+			try {
+				BreakConclusionData(entrustNum);
+				breakConclusionList = breakConclusionService.selectConclusionByEntrust(entrustNum);
+				logger.info("report中的拆股实验数据获得成功");
+			} catch (Exception e) {
+				logger.error("report拆股实验信息获得失败，原因是：{}", e);
+				throw new BaseException(ExceptionEnum.BREAKSTOCKDATA_FAILED);
+			}
+			/**
+			 * 将table1和table2数据放到一个map中，开始调用替换模板的算法
+			 */
+			table2.putAll(table1);
+			table2.put("list", breakConclusionList);
+			map.put("table", table2);
+			return new Response<>(map);
+		}
+	}
+
+	/**
+	 * 从wireRope数据库中可以读取到的头文件信息和综合判定 该方法用于生成word表
+	 * 
+	 * @param entrustNum
+	 * @return
+	 * @throws Exception
+	 */
+	public Map<String, Object> HeadOfReport(String entrustNum) throws Exception {
+		WireRope wireRope = wireRopeMapper.selectByEnsNum(entrustNum);
+//		VersonNumber versonNumber = versonNumberMapper.selectByReportCategory("钢丝绳检测报告");
+		Map<String, Object> table = new HashMap<String, Object>();
+		table.put("bgbh", wireRope.getReportNumber());
+		table.put("bgrq", wireRope.getReportDate());
+		// 根据标准号查询标准的汉语名称
+		WireStandard wireStandard = wsMapper.selectWireStandByStandNum(wireRope.getJudgeStandard());
+		table.put("cpmc", wireStandard.getProName().toString());
+		table.put("ypzt", wireRope.getSampleState());
+		table.put("cpbz", wireRope.getJudgeStandard());
+		table.put("jcbz", wireRope.getTestStandard());
+		table.put("wth", wireRope.getEnstrustmentNumber());
+		table.put("gg", wireRope.getSpecification());
+		table.put("jg", wireRope.getStructure());
+		table.put("cpbh", wireRope.getProducerNumber());
+		table.put("qdjb", wireRope.getStrengthLevel());
+		table.put("bmzt", wireRope.getSurfaceState());
+		table.put("nf", wireRope.getTwistingMethod());
+		table.put("wd", wireRope.getTemperature());
+		table.put("jlh", wireRope.getRecorderNumber());
+		if (wireRope.getMemo() == null) {
+			table.put("memo", "——");
+		} else {
+			table.put("memo", wireRope.getMemo());
+		}
+		table.put("leastbreak", wireRope.getMinBreakTensile().toString());
+		table.put("testbreak", wireRope.getMeasureBreakTensile().toString());
+		table.put("evaluation", wireRope.getEvaluation());
+		if (wireRope.getJudgeStandard().equals("YB/T 5359-2010")) {
+			table.put("pdorqd", "破断拉力标准值(kN)");
+		} else {
+			table.put("pdorqd", "抗拉强度标准值(MPa)");
+		}
+//		table.put("versonNumber", versonNumber.getVersonNumber().toString());
+		return table;
+	}
+
+	/**
+	 * 从wireRope数据库中可以读取到的头文件信息和综合判定 用于前端展示，生成Json数据时调用
+	 * 
+	 * @param entrustNum
+	 * @return
+	 * @throws Exception
+	 */
+	public Map<String, Object> HeadOfReportForJason(String entrustNum) throws Exception {
+		WireRope wireRope = wireRopeMapper.selectByEnsNum(entrustNum);
+		VersonNumber versonNumber = versonNumberMapper.selectByPrimaryKey(15);
+		Map<String, Object> table = new HashMap<String, Object>();
+		System.out.println(wireRope);
+		WireStandard wireStandard = wsMapper.selectWireStandByStandNum(wireRope.getJudgeStandard());
+		if (wireRope.getMemo() == null) {
+			wireRope.setMemo("——");
+		}
+		table.put("wireRope", wireRope);
+		if (wireRope.getJudgeStandard().equals("YB/T 5359-2010")) {
+			table.put("pdorqd", "破断拉力标准值(kN)");
+		} else {
+			table.put("pdorqd", "抗拉强度标准值(MPa)");
+			
+		}
+		table.put("versonNumber", versonNumber.getVersonNumber());
+		table.put("proName", wireStandard.getProName());
+		return table;
+	}
+
+	/**
+	 * 冲拆股实验结论表中调用拆股实验结论数据
+	 */
+	public Map<String, Object> BreakStockData(String entrustNum) {
+		// table存储数据用于生成word报告
+		Map<String, Object> table = new HashMap<>();
+		List<BreakConclusion> dataList = breakConclusionMapper.selectByEntrustNum(entrustNum);
+		int i;
+		for (i = 0; i < dataList.size(); i++) {
+			BreakConclusion bc = dataList.get(i);
+			// 公称直径
+			table.put("ppp" + i + i + i, bc.getnDiamete().toString());
+//			钢丝根数
+			table.put("bbb" + i + i + i, bc.getSteelNumber().toString());
+//			公称强度
+			table.put("ccc" + i + i + i, bc.getStandardStrength().toString());
+//			直径
+			table.put("ddd" + i + i + i, bc.getStandardDiameter());
+			table.put("eee" + i + i + i, bc.getMeasureDiameter());
+//			强度
+			table.put("fff" + i + i + i, bc.getStandardTensile());
+			table.put("ggg" + i + i + i, bc.getMeasureTensile());
+//			打结率
+			table.put("hhh" + i + i + i, bc.getStandardKnot());
+			table.put("mmm" + i + i + i, bc.getMeasureKnot());
+//			扭转
+			table.put("qqq" + i + i + i, bc.getStandardReverse());
+			table.put("rrr" + i + i + i, bc.getMeasureReverse());
+//			弯曲
+			table.put("sss" + i + i + i, bc.getStandardBending());
+			table.put("kkk" + i + i + i, bc.getMeasureBending());
+			// 锌层重量
+			table.put("yyy" + i + i + i, bc.getStandardZinc());
+			table.put("zzz" + i + i + i, bc.getMeasureZinc());
+		}
+		for (int j = i; j < 10; j++) {
+			// 公称直径
+			table.put("ppp" + j + j + j, "——".toString());
+//			钢丝根数
+			table.put("bbb" + j + j + j, "——".toString());
+//			公称强度
+			table.put("ccc" + j + j + j, "——".toString());
+//			直径
+			table.put("ddd" + j + j + j, "——".toString());
+			table.put("eee" + j + j + j, "——".toString());
+//			强度
+			table.put("fff" + j + j + j, "——".toString());
+			table.put("ggg" + j + j + j, "——".toString());
+			// 打结率
+			table.put("hhh" + j + j + j, "——".toString());
+			table.put("mmm" + j + j + j, "——".toString());
+//			扭转
+			table.put("qqq" + j + j + j, "——".toString());
+			table.put("rrr" + j + j + j, "——".toString());
+//			弯曲
+			table.put("sss" + j + j + j, "——".toString());
+			table.put("kkk" + j + j + j, "——".toString());
+			// 锌层重量
+			table.put("yyy" + j + j + j, "——".toString());
+			table.put("zzz" + j + j + j, "——".toString());
+		}
+		return table;
+	}
+
+	/**
+	 * 该方法是拆股实验结论保存到数据库中
+	 * 
+	 * @return
+	 */
+	public List<BreakConclusion> BreakConclusionData(String entrustNum) {
+		// 若要重新判定，先根据委托单号删除数据库breakConclusion表中的相关信息
+		breakConclusionService.deleteConclusion(entrustNum);
+		List<WireData> dataList = wireDataMapper.selectByEnNum(entrustNum);
+		Map<String, Object> table = new HashMap<String, Object>();
+		Map<Double, List<WireData>> dataMap = new HashMap<>();
+		/**
+		 * littleMap存储List<BreakStockResult>,返回给前端Json数据用于展示
+		 */
+		List<BreakConclusion> list = new ArrayList<>();
+		/**
+		 * 将dataList数组数据按照ndiameter进行分组
+		 */
+		List<WireData> l = null;
+		for (WireData wireData : dataList) {
+			if (!dataMap.containsKey(wireData.getnDiamete())) {
+				l = new ArrayList<WireData>();
+				l.add(wireData);
+			} else {
+				l = dataMap.get(wireData.getnDiamete());
+				l.add(wireData);
+			}
+			dataMap.put(wireData.getnDiamete(), l);
+		}
+		Iterator<Double> it = dataMap.keySet().iterator();
+		double ndiameter = 0;
+		// 用于表示第i列拆股实验数据
+		int i = -1;
+		while (it.hasNext()) {
+			// 将拆股实验结论信息保存数据库中
+			BreakConclusion breakConclusion = new BreakConclusion();
+			breakConclusion.setState("000");
+			breakConclusion.setEntrustmentNumber(entrustNum);
+			i = i + 1;
+			ndiameter = it.next();
+			/**
+			 * 对应表中的的公称直径，钢丝根数，公称抗拉强度，直径标准值，直径实测值
+			 */
+			breakConclusion.setnDiamete(ndiameter);
+			// 取出该公称直径对应的wireData列表
+			List<WireData> dlist = dataMap.get(ndiameter);
+			Integer j = 0;
+			for (WireData w : dlist) {
+				j++;
+			}
+			// 钢丝根数
+			breakConclusion.setSteelNumber(j);
+			WireRope wireRope = wireRopeMapper.selectByEnsNum(entrustNum);
+			// 公称强度
+			breakConclusion.setStandardStrength(Integer.parseInt(wireRope.getStrengthLevel()));
+			// 打结率
+			breakConclusion.setStandardKnot("——");
+			breakConclusion.setMeasureKnot("——");
+			// 锌层重量
+			breakConclusion.setStandardZinc("——");
+			breakConclusion.setMeasureZinc("——");
+			/**
+			 * 直径判断
+			 */
+			Map<String, Object> diaTable = new HashMap<>();
+			diaTable = diameterJudge(ndiameter, wireRope, dlist);
+			breakConclusion.setStandardDiameter(diaTable.get("standDiameter").toString());
+			breakConclusion.setMeasureDiameter(diaTable.get("measDiameter").toString());
+			/**
+			 * 判断扭转,扭转实测值
+			 */
+			Map<String, Object> revTable = new HashMap<>();
+			revTable = reverseJudge(ndiameter, wireRope, dlist);
+			breakConclusion.setStandardReverse(revTable.get("standReverse").toString());
+			breakConclusion.setMeasureReverse(revTable.get("measReverse").toString());
+			/**
+			 * 弯曲标准值，弯曲实测值
+			 */
+			Map<String, Object> bendTable = new HashMap<>();
+			bendTable = bendingJudge(ndiameter, wireRope, dlist);
+			breakConclusion.setStandardBending(bendTable.get("standBending").toString());
+			breakConclusion.setMeasureBending(bendTable.get("measBending").toString());
+			/**
+			 * 破断拉力或者抗拉强度判定
+			 */
+			Map<String, Object> breakOrStrenTable = new HashMap<>();
+			breakOrStrenTable = breakOrStrengthJudge(ndiameter, wireRope, dlist);
+			if (wireRope.getJudgeStandard().equals("YB/T 5359-2010")) {
+				breakConclusion.setStandardTensile(breakOrStrenTable.get("standBreakTensile").toString());
+				breakConclusion.setMeasureTensile(breakOrStrenTable.get("measBreakTensile").toString());
+			} else {
+				breakConclusion.setStandardTensile(breakOrStrenTable.get("standTensileStrength").toString());
+				breakConclusion.setMeasureTensile(breakOrStrenTable.get("measTensileStrength").toString());
+			}
+			try {
+				breakConclusionService.saveBreakConclusion(breakConclusion);
+			} catch (Exception e) {
+				logger.error("保存实验结论失败了，原因是:{}", e);
+			}
+		}
+//		for(int j=i+1;j<10;j++) {
+//			//公称直径
+//			table.put("ppp"+j+j+j, "——".toString());
+////			钢丝根数
+//			table.put("bbb"+j+j+j, "——".toString());
+////			公称强度
+//			table.put("ccc"+j+j+j, "——".toString());
+////			直径
+//			table.put("ddd"+j+j+j, "——".toString());
+//			table.put("eee"+j+j+j, "——".toString());
+////			强度
+//			table.put("fff"+j+j+j, "——".toString());
+//			table.put("ggg"+j+j+j, "——".toString());
+//			//打结率
+//			table.put("hhh"+j+j+j, "——".toString());
+//			table.put("mmm"+j+j+j, "——".toString());
+////			扭转
+//			table.put("qqq"+j+j+j, "——".toString());
+//			table.put("rrr"+j+j+j, "——".toString());
+////			弯曲
+//			table.put("sss"+j+j+j, "——".toString());
+//			table.put("kkk"+j+j+j, "——".toString());
+//			//锌层重量
+//			table.put("yyy"+j+j+j, "——".toString());
+//			table.put("zzz"+j+j+j, "——".toString());
+//		}
+		list = breakConclusionService.selectConclusionByEntrust(entrustNum);
+		return list;
+	}
+
+	/**
+	 * 直径判断：YB/T 5359-2010时，直径标准和直径实测值都为空
+	 * 
+	 * @param ndiameter
+	 * @param wireRope
+	 * @param dlist
+	 * @return
+	 */
+	private Map<String, Object> diameterJudge(double ndiameter, WireRope wireRope, List<WireData> dlist) {
+		/**
+		 * 直径判断
+		 */
+		Map<String, Object> map = new HashMap<>();
+		WireRopeData wireRopeData = new WireRopeData();
+		wireRopeData.setNdiamete(ndiameter);
+		wireRopeData.setStandardNum(wireRope.getJudgeStandard());
+		String surface1 = wireRope.getSurfaceState();
+		String surface = "";// 用于扭转弯曲和判定
+		if (surface1.contains("光面")) {
+			surface = "UB";
+		} else if (surface1.contains("A类") || surface1.contains("A级")) {
+			surface = "A";
+		} else if (surface1.contains("B类") || surface1.contains("B级")) {
+			surface = "UB";
+		} else if (surface1.contains("AB类") || surface1.contains("AB级")) {
+			surface = "AB";
+		} else if (surface1.contains("光面和B类") || surface1.contains("光面和B级")) {
+			surface = "UB";
+		}
+		wireRopeData.setSurface(surface);
+		DiameterDeviation dd = DDMapper.selectDiaByBlurType(wireRopeData);
+		if (wireRope.getJudgeStandard().equals("YB/T 5359-2010")) {
+			/**
+			 * 标准名为：YB/T 5359-2010时，直径标准和直径实测值都为空
+			 */
+			map.put("standDiameter", "——");
+			map.put("measDiameter", "——");
+		} else {
+			/**
+			 * 求直径标准值的范围
+			 */
+			double minDia = Arith.sub(ndiameter, dd.getValue());
+			double maxDia = Arith.add(ndiameter, dd.getValue());
+			StringBuilder standDia = new StringBuilder();
+			standDia.append(minDia).append("～").append(maxDia);
+			map.put("standDiameter", standDia.toString());
+			/**
+			 *  求实测直径的范围
+			 */
+			double minMeasDia = dlist.get(0).getDiamete();
+			double maxMeasDia = dlist.get(0).getDiamete();
+			for (WireData w : dlist) {
+				double measDia = w.getDiamete();
+				if (minMeasDia > measDia) {
+					minMeasDia = measDia;
+				}
+				if (maxMeasDia < measDia) {
+					maxMeasDia = measDia;
+				}
+				StringBuilder measDiameter = new StringBuilder();
+				measDiameter.append(minMeasDia).append("～").append(maxMeasDia);
+				map.put("measDiameter", measDiameter.toString());
+			}
+		}
+		return map;
+	}
+
+	/**
+	 * 扭转的判定
+	 * 
+	 * @param wireRope
+	 * @param dlist
+	 * @return
+	 */
+	private Map<String, Object> reverseJudge(double ndiameter, WireRope wireRope, List<WireData> dlist) {
+		Integer minReverse = 0;
+		Integer maxReverse = 0;
+		// 该map存储该方法的返回结果。
+		Map<String, Object> map = new HashMap<>();
+		// rb是用于reverseBendingMapper中查找对应的扭转值
+		ReverseBending rb = new ReverseBending();
+		rb.setStandardNum(wireRope.getJudgeStandard());
+		rb.setRatedStrength(wireRope.getStrengthLevel());
+		String surface1 = wireRope.getSurfaceState();
+		String surface = "";// 用于扭转弯曲和判定
+		if (surface1.contains("光面")) {
+			surface = "UB";
+		} else if (surface1.contains("A类") || surface1.contains("A级")) {
+			surface = "A";
+		} else if (surface1.contains("B类") || surface1.contains("B级")) {
+			surface = "UB";
+		} else if (surface1.contains("AB类") || surface1.contains("AB级")) {
+			surface = "AB";
+		} else if (surface1.contains("光面和B类") || surface1.contains("光面和B级")) {
+			surface = "UB";
+		}
+		rb.setSurfaceState(surface);
+		rb.setfDiamete(ndiameter);
+		List<ReverseBending> rlist = RBMapper.selectRBDataByCon(rb);
+		int[] d = new int[2];
+		for (ReverseBending r : rlist) {
+			if ("R".equals(r.getType())) {
+				d[0] = r.getValueRob();
+			} else if ("B".equals(r.getType())) {
+				d[1] = r.getValueRob();
+			} else if ("C".equals(r.getType())) {
+				d[0] = r.getValueRob();
+			} else if ("P".equals(r.getType())) {
+				d[1] = r.getValueRob();
+			}
+		}
+		StringBuilder standReverse = new StringBuilder();
+		/**
+		 * 标准GB/T 20067-2017中只有圆股钢丝，压实股钢丝扭转的判定，没有弯曲
+		 */
+		if (wireRope.getJudgeStandard().equals("GB/T 20067-2017")) {
+			if (wireRope.getStructure().contains("K")) {
+				standReverse.append("≥").append(d[1]);
+			} else {
+				standReverse.append("≥").append(d[0]);
+			}
+		} else {
+			standReverse.append("≥").append(d[0]);
+		}
+		// 扭转标准值
+		map.put("standReverse", standReverse.toString());
+		/**
+		 * 扭转实测值，弯曲实测值,抗拉强度实测值
+		 */
+		Integer minMeasReverse = dlist.get(0).getTurnTimes();
+		Integer maxMeasReverse = dlist.get(0).getTurnTimes();
+		for (WireData w : dlist) {
+			if (minMeasReverse > w.getTurnTimes()) {
+				minMeasReverse = w.getTurnTimes();
+			}
+			if (maxMeasReverse < w.getTurnTimes()) {
+				maxMeasReverse = w.getTurnTimes();
+			}
+		}
+		StringBuilder measReverse = new StringBuilder();
+		measReverse.append(minMeasReverse).append("～").append(maxMeasReverse);
+		map.put("measReverse", measReverse.toString());
+		return map;
+	}
+
+	/**
+	 * 弯曲判定：若是标准GB/T 20067-2017中只有圆股钢丝，压实股钢丝扭转的判定，没有弯曲
+	 * 
+	 * @param ndiameter
+	 * @param wireRope
+	 * @param dlist
+	 * @return
+	 */
+	private Map<String, Object> bendingJudge(double ndiameter, WireRope wireRope, List<WireData> dlist) {
+		// 用于存储该方法的返回值
+		Map<String, Object> map = new HashMap<String, Object>();
+		/**
+		 * 标准GB/T 20067-2017中只有圆股钢丝，压实股钢丝扭转的判定，没有弯曲
+		 */
+		if (wireRope.getJudgeStandard().equals("GB/T 20067-2017")) {
+			map.put("standBending", "——");
+			map.put("measBending", "——");
+		} else {
+			// rb的定义适用于查询扭转弯曲值
+			ReverseBending rb = new ReverseBending();
+			rb.setStandardNum(wireRope.getJudgeStandard());
+			rb.setRatedStrength(wireRope.getStrengthLevel());
+			String surface1 = wireRope.getSurfaceState();
+			// 用于扭转弯曲和判定
+			String surface = "";
+			if (surface1.contains("光面")) {
+				surface = "UB";
+			} else if (surface1.contains("A类") || surface1.contains("A级")) {
+				surface = "A";
+			} else if (surface1.contains("B类") || surface1.contains("B级")) {
+				surface = "UB";
+			} else if (surface1.contains("AB类") || surface1.contains("AB级")) {
+				surface = "AB";
+			} else if (surface1.contains("光面和B类") || surface1.contains("光面和B级")) {
+				surface = "UB";
+			}
+			rb.setSurfaceState(surface);
+			rb.setfDiamete(ndiameter);
+			List<ReverseBending> rlist = RBMapper.selectRBDataByCon(rb);
+			int[] d = new int[2];
+			for (ReverseBending r : rlist) {
+				if ("B".equals(r.getType())) {
+					d[1] = r.getValueRob();
+				}
+			}
+			StringBuilder standBending = new StringBuilder();
+			standBending.append("≥").append(d[1]);
+			// 弯曲标准值
+			map.put("standBending", standBending.toString());
+			// 弯曲实测值
+			Integer minMeasBending = dlist.get(0).getWindingTimes();
+			Integer maxMeasBending = dlist.get(0).getWindingTimes();
+			for (WireData w : dlist) {
+				if (minMeasBending > w.getWindingTimes()) {
+					minMeasBending = w.getWindingTimes();
+				}
+				if (maxMeasBending < w.getWindingTimes()) {
+					maxMeasBending = w.getWindingTimes();
+				}
+			}
+			StringBuilder measBending = new StringBuilder();
+			measBending.append(minMeasBending).append("～").append(maxMeasBending);
+			map.put("measBending", measBending.toString());
+		}
+		return map;
+	}
+
+	/**
+	 * 破断拉力或者抗拉强度判定：YB/T 5359-2010中是破断拉力的判定，其他标准中是抗拉强度的判定
+	 * 
+	 * @param ndiameter
+	 * @param wireRope
+	 * @param dlist
+	 * @return
+	 */
+	private Map<String, Object> breakOrStrengthJudge(double ndiameter, WireRope wireRope, List<WireData> dlist) {
+
+		Map<String, Object> map = new HashMap<>();
+		/**
+		 * 该标准中没有抗拉强度，判断破断拉力 要求为：不低于平均值*0.92
+		 */
+		if (wireRope.getJudgeStandard().equals("YB/T 5359-2010")) {
+			// 获得该标准的破断拉力标准值
+			double breakAll = 0;
+			for (WireData wireData : dlist) {
+				breakAll += wireData.getBreakTensile();
+			}
+			double average = breakAll / dlist.size();// 平均值
+			Double standBreakTens = Arith.mul(average, 0.75);
+			DecimalFormat df = new DecimalFormat("#.00");
+			System.out.println(df.format(standBreakTens));
+			StringBuilder standBreakTensile = new StringBuilder();
+			standBreakTensile.append("≥").append(df.format(standBreakTens));
+			map.put("standBreakTensile", standBreakTensile.toString());
+			// 获得该标准的破断拉力实测值区间
+			double minBreakTens = dlist.get(0).getBreakTensile();
+			double maxBreakTens = dlist.get(0).getBreakTensile();
+			// 遍历dlist，获得实测值的最小，最大值
+			for (WireData w : dlist) {
+				if (minBreakTens > w.getBreakTensile()) {
+					minBreakTens = w.getBreakTensile();
+				}
+				if (maxBreakTens < w.getBreakTensile()) {
+					maxBreakTens = w.getBreakTensile();
+				}
+			}
+			StringBuilder measBreakTensile = new StringBuilder();
+			measBreakTensile.append(minBreakTens).append("～").append(maxBreakTens);
+			map.put("measBreakTensile", measBreakTensile.toString());
+		} else if (wireRope.getJudgeStandard().equals("GB 8918-2006")) {
+			/**
+			 * 求得抗拉强度的标准值范围 要求：强度级别～强度级别+强度偏差（strength_deviation表中读取）
+			 */
+			WireRopeData wireRopeData = new WireRopeData();
+			wireRopeData.setStandardNum(wireRope.getJudgeStandard());
+			StrengthDeviation sd = null;
+			wireRopeData.setNdiamete(ndiameter);
+			sd = sdMapper.selectByDiamate(wireRopeData);
+			Integer strengthLevel = Integer.parseInt(wireRope.getStrengthLevel());
+			Integer maxStrength = (int) Math.round(strengthLevel + sd.getValue());
+			StringBuilder standTensileStrength = new StringBuilder();
+			standTensileStrength.append(strengthLevel).append("～").append(maxStrength);
+			map.put("standTensileStrength", standTensileStrength.toString());
+			/**
+			 * 求抗拉强度的实测值范围：取最大值，最小值
+			 */
+			Integer maxTensileSrength = dlist.get(0).getTensileStrength();
+			Integer minTensileStrength = dlist.get(0).getTensileStrength();
+			for (WireData w : dlist) {
+				if (minTensileStrength > w.getTensileStrength()) {
+					minTensileStrength = w.getTensileStrength();
+				}
+				if (maxTensileSrength < w.getTensileStrength()) {
+					maxTensileSrength = w.getTensileStrength();
+				}
+			}
+			StringBuilder measTensileStrength = new StringBuilder();
+			measTensileStrength.append(minTensileStrength).append("～").append(maxTensileSrength);
+			map.put("measTensileStrength", measTensileStrength.toString());
+		} else {
+			/**
+			 * 在其他标准中，抗拉强度范围比较统一：≥强度级别-50
+			 */
+			Integer tensileStrength = Integer.parseInt(wireRope.getStrengthLevel()) - 50;
+			StringBuilder standTensileStrength = new StringBuilder();
+			standTensileStrength.append("≥").append(tensileStrength);
+			map.put("standTensileStrength", standTensileStrength.toString());
+			/**
+			 * 抗拉强度实测值
+			 */
+			Integer minTensileStrength = dlist.get(0).getTensileStrength();
+			Integer maxTensileStrength = dlist.get(0).getTensileStrength();
+			for (WireData w : dlist) {
+				if (minTensileStrength > w.getTensileStrength()) {
+					minTensileStrength = w.getTensileStrength();
+				}
+				if (maxTensileStrength < w.getTensileStrength()) {
+					maxTensileStrength = w.getTensileStrength();
+				}
+			}
+			StringBuilder measReverse = new StringBuilder();
+			StringBuilder measBending = new StringBuilder();
+			StringBuilder measTensileStrength = new StringBuilder();
+			measTensileStrength.append(minTensileStrength).append("～").append(maxTensileStrength);
+			map.put("measTensileStrength", measTensileStrength.toString());
+		}
+		return map;
+	}
+
+	/**
+	 * 根据传入的ExportDomain信息，更新数据库
+	 */
+	@Override
+	public Response updateConclusion(ExportDomain exportDomain) {
+		/**
+		 * 接收WireRope，并更新
+		 */
+		WireRope w = exportDomain.getWireRope();
+		wireRopeMapper.updateByPrimaryKeySelective(w);
+		/**
+		 * 接收拆股结论List数据，并更新
+		 */
+		List<BreakConclusion> list = exportDomain.getList();
+		/**
+		 * 查询用户名的权限，看是否足以完成以下操作
+		 */
+		String userName = exportDomain.getUserName();
+		User user = userMapper.selectByUsername(userName);
+		String versonNumber = exportDomain.getVersonNumber();
+		System.out.println(versonNumber);
+		VersonNumber primaryKey = versonNumberMapper.selectByReportCategory("钢丝绳检测报告");
+		System.out.println(primaryKey);
+		//检测传入的值是否跟存储的值相同
+		if(!versonNumber.equals(primaryKey.getVersonNumber())) {
+			if(user.getUserRank().equals("管理员")) {
+				
+				/**
+				 * 如果传入的版本号跟数据库中存储的不同，则更新数据库中信息
+				 */
+				primaryKey.setVersonNumber(versonNumber);
+				versonNumberMapper.updateByPrimaryKey(primaryKey);
+			}else {
+				return new Response("000015000","只有管理员才有资格修改版本号",null);
+			}
+		}
+		/**
+		 * 拆股实验结论的修改
+		 */
+		for (BreakConclusion b : list) {
+			BreakConclusion bc = breakConclusionMapper.selectByPrimaryKey(b.getId());
+			// 判断实测值是否被更改，如果被更改，就判定是不是管理员（只有管理员有资格更改）
+			if (b.getMeasureBending().equals(bc.getMeasureBending())
+					|| b.getMeasureDiameter().equals(bc.getMeasureDiameter())
+					|| b.getMeasureReverse().equals(bc.getMeasureReverse())
+					|| b.getMeasureTensile().equals(bc.getMeasureTensile())
+					|| b.getMeasureKnot().equals(bc.getMeasureKnot())
+					|| b.getMeasureZinc().equals(bc.getMeasureZinc())) {
+				if (user.getUserRank().contains("管理员")) {
+					try {
+						breakConclusionMapper.updateByPrimaryKey(b);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				} else {
+					return new Response<>("00001000", "普通用户只能修改标准值，不能改实测值", null);
+				}
+			} else {
+				breakConclusionMapper.updateByPrimaryKey(b);
+			}
+		}
+		
+		return new Response<>("200", "ok", null);
+	}
+}

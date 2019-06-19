@@ -1,0 +1,88 @@
+package com.hbsi;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
+
+import com.hbsi.basedata.zinclayerweight.service.ZincLayerWeightService;
+import com.hbsi.domain.FromValue;
+import com.hbsi.domain.ZincLayerWeight;
+import com.hbsi.response.Response;
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes =JlCheckApplication.class)
+@WebAppConfiguration
+public class ZincLayerWeightTest {
+
+	@Resource
+	private ZincLayerWeightService zincLayerWeightService;
+	
+//	@Test
+	public void testSelectAllData() {
+		 Response<List<ZincLayerWeight>> selectZincLayerWeight = zincLayerWeightService.selectZincLayerWeight();
+		System.out.println(selectZincLayerWeight);
+	}
+	
+//	@Test
+	public void testDeleteZincLayerWeight() {
+		Response<Integer> response =zincLayerWeightService.deleteZincLayerWeight(7);
+		System.out.println(response);
+	}
+//	@Test
+	public void testsaveSingleZincLayerWeight() {
+		ZincLayerWeight zincLayerWeight=new ZincLayerWeight();
+		zincLayerWeight.setDiameteMax(0.1);
+		zincLayerWeight.setDiameteMin(0.15);
+		zincLayerWeight.setStandardNum("111");
+		zincLayerWeight.setSurfaceState("A");
+		zincLayerWeight.setValue(1233);
+		Response<Integer> response = zincLayerWeightService.saveSingleZincLayerWeight(zincLayerWeight);
+		System.out.println(response);
+	}
+//	@Test
+	public void testsaveZincLayerWeight() {
+		ZincLayerWeight zincLayerWeight=new ZincLayerWeight();
+		zincLayerWeight.setDiameteMax(0.1);
+		zincLayerWeight.setDiameteMin(0.15);
+		zincLayerWeight.setStandardNum("111");
+		zincLayerWeight.setSurfaceState("A");
+		zincLayerWeight.setValue(1233);
+		ZincLayerWeight zincLayerWeight2=new ZincLayerWeight();
+		zincLayerWeight2.setDiameteMax(0.1);
+		zincLayerWeight2.setDiameteMin(0.15);
+		zincLayerWeight2.setStandardNum("111");
+		zincLayerWeight2.setSurfaceState("A");
+		zincLayerWeight2.setValue(1233);
+		List<ZincLayerWeight> list = new ArrayList<ZincLayerWeight>();
+        list.add(zincLayerWeight);
+        list.add(zincLayerWeight2);
+        Response<Integer> response = zincLayerWeightService.saveZincLayerWeight(list);
+		System.out.println(list);
+		System.out.println(response);
+	}
+	
+//	@Test
+	public void testupdateZincLayerWeight() {
+		ZincLayerWeight zincLayerWeight2=new ZincLayerWeight();
+		zincLayerWeight2.setId(1);
+		zincLayerWeight2.setDiameteMax(0.12);
+		zincLayerWeight2.setDiameteMin(0.17);
+		zincLayerWeight2.setStandardNum("222");
+		zincLayerWeight2.setSurfaceState("B");
+		zincLayerWeight2.setValue(1233);
+		Response<Integer> response = zincLayerWeightService.updateZincLayerWeight(zincLayerWeight2);
+		System.out.println(response);
+	}
+//	@Test
+	public void testDeleteAllData() {
+		Response<Integer> deleteAllData = zincLayerWeightService.deleteAllData();
+		
+	}
+}

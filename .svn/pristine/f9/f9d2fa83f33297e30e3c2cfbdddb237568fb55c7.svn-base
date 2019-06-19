@@ -1,0 +1,27 @@
+package com.hbsi.entrustment.service;
+
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.response.Response;
+
+/**
+ * 委托单管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+public interface EntrustmentDataService {
+	
+	/**
+	 * 查询或新建委托单报告
+	 * @param info
+	 * @return
+	 */
+	Response<EntrustmentData> selectOrSaveEntrustmentData(String info);
+	
+	/**
+	 * 添加委托单数据和钢丝数据（提交按钮）
+	 * @param info
+	 * @return
+	 */
+	Response<Integer> saveEntDataAndSteelData(String info);
+}

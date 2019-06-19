@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hbsi.dao.EntrustmentMapper">
+  <resultMap id="BaseResultMap" type="com.hbsi.domain.Entrustment">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="sample_batch" jdbcType="INTEGER" property="sampleBatch" />
+    <result column="entrustment_number" jdbcType="VARCHAR" property="entrustmentNumber" />
+    <result column="state" jdbcType="CHAR" property="state" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, sample_batch, entrustment_number, state
+  </sql>
+  <!-- 查询委托单列表 -->
+  <select id="selectEntrustmentList" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from entrustment
+    where state = '000'
+  </select>
+  <!-- 模糊查询委托单 -->
+  <select id="selectEnts" parameterType="com.hbsi.domain.Entrustment" resultMap="BaseResultMap">
+  	select 
+    <include refid="Base_Column_List" />
+    from entrustment
+    where state = '000' and entrustment_number like CONCAT('%', #{entrustmentNumber}, '%')
+  </select>
+  <!-- 删除委托单，修改状态为999 -->
+  <update id="deleteEntrustment" parameterType="com.hbsi.domain.Entrustment">
+    update entrustment
+    set state='999'
+    where sample_batch = #{sampleBatch,jdbcType=INTEGER}
+  </update>
+  
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from entrustment
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from entrustment
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <!-- 查询委托单号是否已存在 -->
+  <select id="selectEntrustmentNumber" parameterType="com.hbsi.domain.Entrustment" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from entrustment
+    where entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR} and state = '000'
+  </select>
+  <!-- 添加委托单 -->
+  <insert id="insert" parameterType="com.hbsi.domain.Entrustment">
+    insert into entrustment (sample_batch, entrustment_number)
+    values (#{sampleBatch,jdbcType=INTEGER}, #{entrustmentNumber,jdbcType=VARCHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.hbsi.domain.Entrustment">
+    insert into entrustment
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="sampleBatch != null">
+        sample_batch,
+      </if>
+      <if test="entrustmentNumber != null">
+        entrustment_number,
+      </if>
+      <if test="state != null">
+        state,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="sampleBatch != null">
+        #{sampleBatch,jdbcType=INTEGER},
+      </if>
+      <if test="entrustmentNumber != null">
+        #{entrustmentNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="state != null">
+        #{state,jdbcType=CHAR},
+      </if>
+    </trim>
+  </insert>
+  <!-- 修改委托单 -->
+  <update id="updateByPrimaryKeySelective" parameterType="com.hbsi.domain.Entrustment">
+    update entrustment
+    <set>
+      <if test="entrustmentNumber != null">
+        entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where sample_batch = #{sampleBatch,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.hbsi.domain.Entrustment">
+    update entrustment
+    set sample_batch = #{sampleBatch,jdbcType=INTEGER},
+      entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR},
+      state = #{state,jdbcType=CHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

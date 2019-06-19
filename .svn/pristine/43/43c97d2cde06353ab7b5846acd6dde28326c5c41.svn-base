@@ -1,0 +1,120 @@
+package com.hbsi.domain;
+
+public class BreakStockResult {
+
+	String ndiameter;
+	String steelWireNum;
+	String StrengthLevel;
+	String standardDiameter;
+	String measDiameter;
+	String standardStrengthOrBreak;
+	String measStrengthOrBreak;
+	String knotRate;
+	String measKnot;
+	String standardReverse;
+	String measReverse;
+	String standardBending;
+	String measBending;
+	String standardZinc;
+	String measZinc;
+	public String getNdiameter() {
+		return ndiameter;
+	}
+	public void setNdiameter(String ndiameter) {
+		this.ndiameter = ndiameter;
+	}
+	public String getSteelWireNum() {
+		return steelWireNum;
+	}
+	public void setSteelWireNum(String steelWireNum) {
+		this.steelWireNum = steelWireNum;
+	}
+	public String getStrengthLevel() {
+		return StrengthLevel;
+	}
+	public void setStrengthLevel(String strengthLevel) {
+		StrengthLevel = strengthLevel;
+	}
+	public String getStandardDiameter() {
+		return standardDiameter;
+	}
+	public void setStandardDiameter(String standardDiameter) {
+		this.standardDiameter = standardDiameter;
+	}
+	public String getMeasDiameter() {
+		return measDiameter;
+	}
+	public void setMeasDiameter(String measDiameter) {
+		this.measDiameter = measDiameter;
+	}
+	public String getStandardStrengthOrBreak() {
+		return standardStrengthOrBreak;
+	}
+	public void setStandardStrengthOrBreak(String standardStrengthOrBreak) {
+		this.standardStrengthOrBreak = standardStrengthOrBreak;
+	}
+	public String getMeasStrengthOrBreak() {
+		return measStrengthOrBreak;
+	}
+	public void setMeasStrengthOrBreak(String measStrengthOrBreak) {
+		this.measStrengthOrBreak = measStrengthOrBreak;
+	}
+	public String getKnotRate() {
+		return knotRate;
+	}
+	public void setKnotRate(String knotRate) {
+		this.knotRate = knotRate;
+	}
+	public String getMeasKnot() {
+		return measKnot;
+	}
+	public void setMeasKnot(String measKnot) {
+		this.measKnot = measKnot;
+	}
+	public String getStandardReverse() {
+		return standardReverse;
+	}
+	public void setStandardReverse(String standardReverse) {
+		this.standardReverse = standardReverse;
+	}
+	public String getMeasReverse() {
+		return measReverse;
+	}
+	public void setMeasReverse(String measReverse) {
+		this.measReverse = measReverse;
+	}
+	public String getStandardBending() {
+		return standardBending;
+	}
+	public void setStandardBending(String standardBending) {
+		this.standardBending = standardBending;
+	}
+	public String getMeasBending() {
+		return measBending;
+	}
+	public void setMeasBending(String measBending) {
+		this.measBending = measBending;
+	}
+	public String getStandardZinc() {
+		return standardZinc;
+	}
+	public void setStandardZinc(String standardZinc) {
+		this.standardZinc = standardZinc;
+	}
+	public String getMeasZinc() {
+		return measZinc;
+	}
+	public void setMeasZinc(String measZinc) {
+		this.measZinc = measZinc;
+	}
+	@Override
+	public String toString() {
+		return "BreakStockResult [ndiameter=" + ndiameter + ", steelWireNum=" + steelWireNum + ", StrengthLevel="
+				+ StrengthLevel + ", standardDiameter=" + standardDiameter + ", measDiameter=" + measDiameter
+				+ ", standardStrengthOrBreak=" + standardStrengthOrBreak + ", measStrengthOrBreak="
+				+ measStrengthOrBreak + ", knotRate=" + knotRate + ", measKnot=" + measKnot + ", standardReverse="
+				+ standardReverse + ", measReverse=" + measReverse + ", standardBending=" + standardBending
+				+ ", measBending=" + measBending + ", standardZinc=" + standardZinc + ", measZinc=" + measZinc + "]";
+	}
+	
+}

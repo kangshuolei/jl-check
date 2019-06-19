@@ -1,0 +1,426 @@
+package com.hbsi.export.service.impl;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.DecimalFormat;
+import java.text.Format;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+import javax.swing.tree.ExpandVetoException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+import org.springframework.util.ResourceUtils;
+
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.common.utils.word.MSWordTool;
+import com.hbsi.dao.EntrustmentDataMapper;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.SampleRecordMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.UserMapper;
+import com.hbsi.dao.VersonNumberMapper;
+import com.hbsi.dao.WireDataMapper;
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.dao.WireStandardMapper;
+import com.hbsi.domain.BreakStockDomain;
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.domain.User;
+import com.hbsi.domain.VersonNumber;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireDataForExport;
+import com.hbsi.domain.WireRope;
+import com.hbsi.domain.WireStandard;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.export.service.BreakOrigRecordService;
+import com.hbsi.response.Response;
+
+@Service
+public class BreakOrigRecordServiceImpl implements BreakOrigRecordService {
+
+	/**
+	 * author:shazhou
+	 */
+	Logger logger = LoggerFactory.getLogger(this.getClass());
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;
+	@Autowired
+	private UserMapper userMapper;
+	@Autowired
+	private VersonNumberMapper versonNumberMapper;
+	@Autowired
+	private WireDataMapper wireDataMapper;
+	@Autowired
+	private WireRopeMapper wireRopeMapper;
+	@Autowired
+	private SteelWireDataMapper steelWDMapper;
+	@Autowired
+	private WireStandardMapper wireStandardMapper;
+	@Autowired
+	private SampleRecordMapper sampleRecordMapper;
+
+	/**
+	 * 拆股实验原始记录，替换模板内容并输出到前端(以流的方式导出word)
+	 * 
+	 * @throws IOException
+	 */
+	@Override
+	public Response<?> BreakOrigRecord(String entrustNum, HttpServletResponse response) throws IOException {
+		File file = File.createTempFile("breakStockCreated", ".docx");
+		FileOutputStream fos = new FileOutputStream(file);
+		// 调用MSWordTool工具类
+		MSWordTool changer = new MSWordTool();
+		try (InputStream stream = getClass().getClassLoader()
+				.getResourceAsStream("templates/breakoriginaldata.docx");) {
+			changer.setTemplate(stream);
+			Map<String, Object> map = new HashMap<String, Object>();
+			Map<String, Object> table1 = new HashMap<>();
+			List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+			// 获取报告的头文件
+			table1 = HeadOfBreak(entrustNum);
+			// 获取钢丝记录
+			list = SteelDataRecord(entrustNum);
+			map.put("texts", table1);
+			map.put("table", list);
+			changer.replaceTemplete(map, fos);
+		} catch (Exception e1) {
+			logger.error("调用工具类生成报告失败，原因是{}", e1);
+			return new Response<>("000019110", "报告生成失败", null);
+		}
+		/**
+		 * 通过文件流的方式把临时文件传递给前端
+		 */
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+		String month = sdf.format(new Date());
+		String basePath = "D:"+File.separator+"钢丝绳报告"+File.separator+entrustNum;
+		File file3 = new File(basePath);
+		if(!file3.exists()) {
+			file3.mkdirs();
+			System.out.println(file3.getAbsolutePath());
+		}
+		String filePath = basePath+File.separator+"拆股试验记录.docx";
+		File file2 = ResourceUtils.getFile(file.getAbsolutePath());
+		try (FileOutputStream output = new FileOutputStream(filePath); FileInputStream is = new FileInputStream(file2);) {
+			int len = 0;
+			byte[] bt = new byte[1024];
+			while ((len = is.read(bt)) != -1) {
+				output.write(bt, 0, len);
+			}
+		} catch (Exception e) {
+			logger.error("生成报告失败的原因是:{}", e.getMessage());
+		}
+		file.deleteOnExit();
+		return new Response<>("200", "ok", null);
+	}
+
+	/**
+	 * 拆股实验原始记录, 以json串格式传送给前端
+	 */
+	@Override
+	public Response<?> BreakOrigRecordJson(String entrustNum) throws IOException {
+		try {
+			if (entrustNum == null || "".equals(entrustNum)) {
+				return new Response<>("000017110", "输入的委托单号为空", null);
+			} else {
+				Map<String, Object> map = new HashMap<String, Object>();
+				Map<String, Object> table1 = new HashMap<>();
+				List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+				table1 = HeadOfBreak(entrustNum);
+				logger.info("report表头信息获得成功");
+				list = SteelDataRecord(entrustNum);
+				logger.info("report中的拆股实验数据获得成功");
+				map.put("texts", table1);
+				map.put("table", list);
+				return new Response<>(map);
+			}
+		} catch (Exception e) {
+			logger.error("report拆股实验信息获得失败，原因是：{}", e);
+			throw new BaseException(ExceptionEnum.BREAKSTOCKDATA_FAILED);
+		}
+	}
+
+	/**
+	 * 拆股实验原始记录的头信息
+	 * 
+	 * @param entrustNum
+	 * @return
+	 */
+	@Override
+	public Map<String, Object> HeadOfBreak(String entrustNum) {
+		Map<String, Object> map = new HashMap<>();
+		WireRope wireRope = wireRopeMapper.selectByEnsNum(entrustNum);
+		List<SteelWireData> steelWDList = steelWDMapper.selectByEnNum(entrustNum);
+		WireStandard wireStandard = wireStandardMapper.selectWireStandByStandNum(wireRope.getJudgeStandard());
+		// 委托单号
+		map.put("etursnum", entrustNum.toString());
+		/**
+		 * 下面的值从wireRope表中查的
+		 */
+		map.put("recordnum", wireRope.getRecorderNumber().toString());
+		map.put("prostand", wireRope.getJudgeStandard().toString());
+		map.put("struct", wireRope.getStructure().toString());
+		map.put("pronum", wireRope.getProducerNumber().toString());
+		map.put("surface", wireRope.getSurfaceState().toString());
+		map.put("strenlevel", wireRope.getStrengthLevel().toString());
+		map.put("twistmeth", wireRope.getTwistingMethod().toString());
+		map.put("temp", wireRope.getTemperature().toString());
+		map.put("teststand", wireRope.getTestStandard().toString());
+		map.put("specif", wireRope.getSpecification().toString());
+		if (ObjectUtils.isEmpty(wireRope.getRecorderMemo())) {
+			map.put("recordmemo", "——");
+		} else {
+			map.put("recordmemo", wireRope.getRecorderMemo().toString());
+		}
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+//		String formatDate = df.format(Date.valueOf(entrustData.getDate().toString()));
+		map.put("recordate", wireRope.getReportDate().toString());
+		map.put("proname", wireStandard.getProName().toString());
+		Integer sampleBatch = entrustmentMapper.selectEntrustmentNumber(entrustNum).getSampleBatch();
+		List<SampleRecord> sampleRecordList = sampleRecordMapper.selectData(sampleBatch);
+
+		String testman = new String();
+		String testmachine = new String();
+		// 测试人员编号和测试机器编号要从sampleRecord表中查找
+		for (SampleRecord s : sampleRecordList) {
+			if (!testman.contains(s.getTestMembersNumber())) {
+				testman = testman + s.getTestMembersNumber() + " ";
+			}
+			if (!testmachine.contains(s.getMachineNumber())) {
+				testmachine = testmachine + s.getMachineNumber() + " ";
+			}
+		}
+		map.put("testman", testman.toString());
+		map.put("testmachine", testmachine.toString());
+		// 将版本号查询出来放到map中
+		VersonNumber versonNumber = versonNumberMapper.selectByReportCategory("拆股实验原始记录");
+		map.put("versonNumber", versonNumber.getVersonNumber().toString());
+		return map;
+	}
+
+	/**
+	 * 拆股实验原始记录的拆股后SteelWireData数据列表
+	 * 
+	 * @param entrustNum
+	 * @return
+	 */
+	@Override
+	public List<Map<String, Object>> SteelDataRecord(String entrustNum) {
+		int i = 0;
+		List<Map<String, Object>> list = new ArrayList<>();
+		Map<String, Object> map = null;
+//		List<SteelWireData> steelWDList = steelWDMapper.selectByEnNum(entrustNum);
+		List<WireData> wireDataList = wireDataMapper.selectByEnNum(entrustNum);
+		for (WireData s : wireDataList) {
+			map = new HashMap<>();
+			i++;
+			// map中新加一条数据库表中的id，用途：在修改数据时根据id在数据库中查询对应数据
+			map.put("id", s.getId());
+			Format f1 = new DecimalFormat("000");
+			map.put("sequence", f1.format(i).toString());
+			if (ObjectUtils.isEmpty(s.getnDiamete())) {
+				map.put("ratedia", "");
+			} else {
+				map.put("ratedia", s.getnDiamete().toString());
+			}
+			if (ObjectUtils.isEmpty(s.getDiamete())) {
+				map.put("measdia", "".toString());
+			} else if (ObjectUtils.isEmpty(s.getDiameteJudge())) {
+				map.put("measdia", s.getDiamete().toString());
+			} else {
+				map.put("measdia", s.getDiamete() + s.getDiameteJudge().toString());
+			}
+			if (ObjectUtils.isEmpty(s.getBreakTensile())) {
+				map.put("breaktens", "".toString());
+			} else if (ObjectUtils.isEmpty(s.getTensileJudge())) {
+				map.put("breaktens", s.getBreakTensile().toString());
+			} else {
+				map.put("breaktens", s.getBreakTensile().toString() + s.getTensileJudge().toString());
+			}
+			if (ObjectUtils.isEmpty(s.getTensileStrength())) {
+				map.put("tenstren", "".toString());
+			} else if (ObjectUtils.isEmpty(s.getStrengthJudge())) {
+				map.put("tenstren", s.getTensileStrength().toString());
+			} else {
+				map.put("tenstren", s.getTensileStrength().toString() + s.getStrengthJudge().toString());
+			}
+			// 拆股实验记录，打结的结果
+			if (ObjectUtils.isEmpty(s.getKnotTension())) {
+				map.put("knotstren", "".toString());
+			} else {
+				map.put("knotstren", s.getKnotTension().toString());
+			}
+			// 打结率
+			if (ObjectUtils.isEmpty(s.getKnotRate())) {
+				map.put("knotrate", "".toString());
+			} else if (ObjectUtils.isEmpty(s.getKnotJudge())) {
+				map.put("knotrate", s.getKnotRate().toString());
+			} else {
+				map.put("knotrate", s.getKnotRate().toString() + s.getKnotJudge().toString());
+			}
+			if (ObjectUtils.isEmpty(s.getTurnTimes())) {
+				map.put("reverse", "".toString());
+			} else if (ObjectUtils.isEmpty(s.getTurnJudge())) {
+				map.put("reverse", s.getTurnTimes().toString());
+			} else {
+				map.put("reverse", s.getTurnTimes().toString() + s.getTurnJudge().toString());
+			}
+			if (ObjectUtils.isEmpty(s.getWindingTimes())) {
+				map.put("bending", "".toString());
+			} else if (ObjectUtils.isEmpty(s.getWindingJudge())) {
+				map.put("bending", s.getWindingTimes().toString());
+			} else {
+				map.put("bending", s.getWindingTimes().toString() + s.getWindingJudge().toString());
+			}
+			map.put("twist", "".toString());
+			map.put("zinclayer", "".toString());
+			list.add(map);
+		}
+		return list;
+	}
+
+	/**
+	 * 版本号修改接口
+	 */
+	public Response<?> updateBreakStockRecord(BreakStockDomain breakStockDomain) {
+		try {
+			// 1.版本号修改
+			String userName = breakStockDomain.getWireRopeForExport().getUserName();
+			/**
+			 * 根据传入的当前用户名查询得到该用户的级别：不是管理员是没资格改的
+			 */
+			User user = userMapper.selectByUsername(userName);
+			String versonNumber = breakStockDomain.getWireRopeForExport().getVersonNumber();
+			VersonNumber VN = versonNumberMapper.selectByReportCategory("拆股实验原始记录");
+			/**
+			 * 判定如果传过来的版本号跟数据库中查德的不同，修改数据库中的版本号
+			 */
+			if (!versonNumber.equals(VN.getVersonNumber())) {
+				if (user.getUserRank().equals("管理员")) {
+					VN.setVersonNumber(versonNumber);
+					versonNumberMapper.updateByPrimaryKey(VN);
+				} else {
+					return new Response<>("00001500", "非管理员不允许修改版本号", null);
+				}
+			}
+			// 2.表头修改
+			WireRope wireRope1 = wireRopeMapper.selectByEnsNum(breakStockDomain.getWireRopeForExport().getEtursnum());
+			wireRope1.setStructure(breakStockDomain.getWireRopeForExport().getStruct());
+			wireRope1.setProducerNumber(breakStockDomain.getWireRopeForExport().getPronum());
+			wireRope1.setTemperature(breakStockDomain.getWireRopeForExport().getTemp());
+			wireRope1.setSurfaceState(breakStockDomain.getWireRopeForExport().getSurface());
+			wireRope1.setTestStandard(breakStockDomain.getWireRopeForExport().getTeststand());
+			wireRope1.setRecorderNumber(breakStockDomain.getWireRopeForExport().getRecordnum());
+			wireRope1.setSpecification(breakStockDomain.getWireRopeForExport().getSpecif());
+			wireRope1.setEnstrustmentNumber(breakStockDomain.getWireRopeForExport().getEtursnum());
+			wireRope1.setRecorderMemo(breakStockDomain.getWireRopeForExport().getRecordmemo());
+			wireRope1.setJudgeStandard(breakStockDomain.getWireRopeForExport().getProstand());
+			wireRope1.setStrengthLevel(breakStockDomain.getWireRopeForExport().getStrenlevel());
+			wireRope1.setReportDate(breakStockDomain.getWireRopeForExport().getRecordate());
+			wireRope1.setTwistingMethod(breakStockDomain.getWireRopeForExport().getTwistmeth());
+			wireRopeMapper.updateByPrimaryKey(wireRope1);
+			// 2.1.表头中的产品名称
+			WireStandard wireStandard = wireStandardMapper.selectWireStandByStandNum(breakStockDomain.getWireRopeForExport().getProstand());
+			if (!wireStandard.getProName().equals(breakStockDomain.getWireRopeForExport().getProname())) {
+				wireStandard.setProName(breakStockDomain.getWireRopeForExport().getProname());
+				wireStandardMapper.updateByPrimaryKeySelective(wireStandard);
+			}
+			// 3.wireDataList中的内容更新
+			List<WireDataForExport> wireDatalist = breakStockDomain.getWireDataForExporlist();
+			for (WireDataForExport wd : wireDatalist) {
+				WireData wireData = wireDataMapper.selectByPrimaryKey(wd.getId());
+				//思路：先判定是否为空，在判定是否包含*（有*说明低值或者不合格）
+				if(ObjectUtils.isEmpty(wd.getTenstren())) {
+					wireData.setTensileStrength(null);
+				}else if(wd.getTenstren().contains("*")){
+					wireData.setTensileStrength(Integer.parseInt(wd.getTenstren().substring(0, wd.getTenstren().indexOf("*"))));
+					wireData.setStrengthJudge(wd.getTenstren().substring(wd.getTenstren().indexOf("*")));
+				}else {
+					wireData.setTensileStrength(Integer.parseInt(wd.getTenstren()));
+					wireData.setStrengthJudge(null);
+				}
+				if(ObjectUtils.isEmpty(wd.getBreaktens())) {
+					wireData.setBreakTensile(null);
+				}else if(wd.getBreaktens().contains("*")) {
+					wireData.setBreakTensile(Double.parseDouble(wd.getBreaktens().substring(0, wd.getBreaktens().indexOf("*"))));
+					wireData.setTensileJudge(wd.getBreaktens().substring(wd.getBreaktens().indexOf("*")));
+				}else {
+					wireData.setBreakTensile(Double.parseDouble(wd.getBreaktens()));
+					wireData.setTensileJudge(null);
+				}
+				if(ObjectUtils.isEmpty(wd.getBending())) {
+					wireData.setWindingTimes(null);
+				}else if(wd.getBending().contains("*")) {
+					wireData.setWindingTimes(Integer.parseInt(wd.getBending().substring(0, wd.getBending().indexOf("*"))));
+					wireData.setWindingJudge(wd.getBending().substring(wd.getBending().indexOf("*")));
+				}else {
+					wireData.setWindingTimes(Integer.parseInt(wd.getBending()));
+					wireData.setWindingJudge(null);
+				}
+				if(ObjectUtils.isEmpty(wd.getRatedia())) {
+					wireData.setnDiamete(null);
+				}else {
+					wireData.setnDiamete(Double.parseDouble(wd.getRatedia()));
+				}
+				if(ObjectUtils.isEmpty(wd.getBreaktens())) {
+					wireData.setBreakTensile(null);
+				}else if(wd.getBreaktens().contains("*")) {
+					wireData.setBreakTensile(Double.parseDouble(wd.getBreaktens().substring(0, wd.getBreaktens().indexOf("*"))));
+					wireData.setTensileJudge(wd.getBreaktens().substring(wd.getBreaktens().indexOf("*")));
+				}else {
+					wireData.setBreakTensile(Double.parseDouble(wd.getBreaktens()));
+					wireData.setTensileJudge(null);
+				}
+				if(ObjectUtils.isEmpty(wd.getReverse())) {
+					wireData.setTurnTimes(null);
+				}else if(wd.getReverse().contains("*")) {
+					wireData.setTurnTimes(Integer.parseInt(wd.getReverse().substring(0, wd.getReverse().indexOf("*"))));
+					wireData.setTurnJudge(wd.getReverse().substring(wd.getReverse().indexOf("*")));
+				}else {
+					wireData.setTurnTimes(Integer.parseInt(wd.getReverse()));
+					wireData.setTurnJudge(null);
+				}
+
+				if(ObjectUtils.isEmpty(wd.getKnotstren())) {
+					wireData.setKnotTension(null);
+				}else if(wd.getKnotstren().contains("*")) {
+					wireData.setKnotTension(Double.parseDouble(wd.getKnotstren().substring(0, wd.getKnotstren().indexOf("*"))));
+					wireData.setKnotJudge(wd.getKnotstren().substring(wd.getKnotstren().indexOf("*")));
+				}else {
+					wireData.setKnotTension(Double.parseDouble(wd.getKnotstren()));
+					wireData.setKnotJudge(null);
+				}
+                if(ObjectUtils.isEmpty(wd.getMeasdia())) {
+                	wireData.setDiamete(Double.parseDouble(wd.getMeasdia()));
+                }else if(wd.getMeasdia().contains("*")) {
+                	wireData.setDiamete(Double.parseDouble(wd.getMeasdia().substring(0, wd.getMeasdia().indexOf("*"))));
+                	wireData.setDiameteJudge(wd.getMeasdia().substring(wd.getMeasdia().indexOf("*")));
+                }else {
+                	wireData.setDiamete(Double.parseDouble(wd.getMeasdia()));
+                	wireData.setDiameteJudge(null);
+                }
+				wireDataMapper.updateByPrimaryKey(wireData);
+			}
+		} catch (Exception e) {
+            logger.error("更新拆股实验原始记录表失败了，原因是:{}",e);
+            return new Response<>("00190110","拆股实验原始记录更新失败",null);
+		}
+		return new Response<>("200","ok",null);
+	}
+
+}

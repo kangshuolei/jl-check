@@ -1,0 +1,49 @@
+package com.hbsi.sample.service;
+
+import java.util.List;
+
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.response.Response;
+
+/**
+ * 试验数据管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+public interface SampleRecordService {
+	
+	/**
+	 * 查询试验记录
+	 * @param sd
+	 * @return
+	 */
+	Response<List<SampleRecord>> selectSampleRecordList(SampleRecord sd);
+	
+	/**
+	 * 错误处理列表
+	 * @param sd
+	 * @return
+	 */
+	Response<List<SampleRecord>> selectSampleErrorList(SampleRecord sd);
+	
+	/**
+	 * 删除错误数据
+	 * @param info
+	 * @return
+	 */
+	Response<Integer> deleteSampleError(String info);
+	/**
+	 * 查询试样批次和委托单号
+	 * @return
+	 */
+	Response<List<SampleRecord>> selectSampleBatch();
+	/**
+	 * 根据委托单号获取钢丝数据
+	 * @param entrustmentNum
+	 * @return
+	 */
+	Response<List<SteelWireData>> selectSteelWireDataList(String entrustmentNum);
+
+}

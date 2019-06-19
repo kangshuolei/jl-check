@@ -1,0 +1,131 @@
+package com.hbsi.wire.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.hbsi.dao.DiameterDeviationMapper;
+import com.hbsi.dao.WireAttributesMT7162006Mapper;
+import com.hbsi.domain.DiameterDeviation;
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.domain.WireAttributesMT7162006;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.entity.WireRopeData;
+import com.hbsi.response.Response;
+import com.hbsi.wire.service.WireRopeServiceMT716;
+/**
+ * MT716
+ * @author cxh
+ *
+ */
+
+public class WireRopeServiceImplMT716 implements WireRopeServiceMT716{
+	@Autowired
+	private WireAttributesMT7162006Mapper attMapper;
+	//直径允许误差
+	@Autowired
+	private DiameterDeviationMapper diameterDeviationMapper;
+
+	/**
+	 * MT716-2005 煤矿重要用途钢丝绳验收标准
+	 */
+	public Response<WireRope> judgeWire(WireRope wireRope) {
+		
+		return null;
+	}
+	/**
+	 * 钢丝绳综合判定
+	 * @param wireRope
+	 * @return
+	 * 判断直径   抗拉强度    反复弯曲次数    扭转次数    打结拉伸
+	 */
+	private Map<Double, int[]> judgeWireRope(WireRope wireRope){
+		WireAttributesMT7162006 att=attMapper.selectByStructure(wireRope.getStructure());//查询钢丝绳的各种系数
+	
+		
+		//钢丝绳的股类型
+		String shape=att.getShape();
+		shape="圆形股";
+		List<WireData> dataList=wireRope.getWireDataList();
+		/**
+		 * 判断钢丝绳表面状态
+		 */
+		String surface1=wireRope.getSurfaceState();
+		String surface="";
+		if(surface1.contains("光面")) {
+			surface="U";
+		}else if(surface1.contains("A类")||surface1.contains("A级")){
+			surface="A";
+		}else if(surface1.contains("B类")||surface1.contains("B级")){
+			surface="B";
+		}else if(surface1.contains("AB类")||surface1.contains("AB级")){
+			surface="AB";
+		}else if(surface1.contains("光面和B类")||surface1.contains("光面和B级")) {
+			surface="UB";
+		}
+		String diaSurface=surface;//用于直径偏差
+		if(surface.equals("U")||surface.equals("B")||surface.equals("AB")) {
+			diaSurface="U,B,AB";
+		}
+//		if(surface1.contains("光面")&&surface1.contains("B级")) {
+//			surface="U,B";//用于扭转弯曲判定
+//		}
+		
+		//钢丝绳的抗拉强度级别
+		Integer strengthLevel=Integer.parseInt(wireRope.getStrengthLevel());
+		/**
+		 * 按照试验钢丝数据公称直径组合数据
+		 */
+		Map<Double, List<WireData>> dataMap=new HashMap<>();
+		List<WireData> l=null;
+		for(WireData wireData:dataList) {
+			if(!dataMap.containsKey(wireData.getnDiamete())) {
+				l=new ArrayList<WireData>();
+				l.add(wireData);
+			}else {
+				l=dataMap.get(wireData.getnDiamete());
+				l.add(wireData);
+			}
+			dataMap.put(wireData.getnDiamete(), l);
+		}
+		
+		//公称直径
+		double ndiamate=0;
+		//钢丝最小破断拉力系数
+		DiameterDeviation dd=null;//钢丝直径允许最大偏差  根据公称直径所在范围进行查询 
+		//查询扭转弯曲次数的最低值条件
+		ReverseBending rb=new ReverseBending();
+		rb.setStandardNum(wireRope.getJudgeStandard());
+		rb.setRatedStrength(strengthLevel+"");
+		rb.setSurfaceState(surface);
+		/**
+		 * 查询直径允许偏差的条件
+		 */
+		WireRopeData wireRopeData=new WireRopeData();
+		wireRopeData.setStandardNum(wireRope.getJudgeStandard());
+		wireRopeData.setSurface(diaSurface);
+		/**
+		 * 定义数组，保存判定结果
+		 */
+		Map<Double, int[]> resultMap=new HashMap<Double,int[]>();
+		int[] all=new int[15];//保存总的结果
+		/**
+		 * 循环数据，进行判定
+		 */
+		Iterator<Double> it=dataMap.keySet().iterator();
+		while(it.hasNext()) {
+			ndiamate=it.next();
+			wireRopeData.setNdiamete(ndiamate);
+			dd=diameterDeviationMapper.selectDiaByType(wireRopeData);//钢丝直径允许的最大偏差
+			
+		}
+		
+		return null;
+	}
+
+}

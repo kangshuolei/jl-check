@@ -1,0 +1,122 @@
+package com.hbsi.machine.service.impl;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.hbsi.dao.MachineMapper;
+import com.hbsi.domain.Machine;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.machine.service.MachineService;
+import com.hbsi.response.PageResult;
+import com.hbsi.response.Response;
+
+/**
+ * 机器数据
+ * 
+ * @author lixuyang
+ *
+ */
+@Service
+public class MachineServiceImpl implements MachineService{
+	
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+	
+	@Autowired
+	private MachineMapper machineMapper;
+	
+	/**
+	 * 添加机器数据
+	 * @param machine
+	 * @return
+	 */
+	@Override
+	public Response<Integer> saveMachine(Machine machine) {
+		if(machine.getMachineAddr()==null||machine.getMachineAddr()==0) {
+			logger.info("机器地址不能为空");
+			return new Response<>("00009200", "机器地址不能为空", null);
+		}
+		if(machine.getMachineType()==null||"".equals(machine.getMachineType())) {
+			logger.info("机器类型不能为空");
+			return new Response<>("00009200", "机器类型不能为空", null);
+		}
+		if(machine.getMachineNumber()==null||"".equals(machine.getMachineNumber())) {
+			logger.info("机器编号不能为空");
+			return new Response<>("00009200", "机器编号不能为空", null);
+		}
+		Machine m = machineMapper.selectByPrimaryKey(machine.getMachineAddr());
+		if(m!=null) {
+			logger.info("机器地址已存在");
+			return new Response<>("00009100", "机器地址已存在", null);
+		}
+		Integer result = null;
+		try {
+			result = machineMapper.insert(machine);
+			logger.info("添加机器数据,结果：{}", result);
+		} catch (Exception e) {
+			logger.error("添加机器数据异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.MACHINE_SAVE_FAILED);
+		}
+		return new Response<>(result);
+	}
+
+	/**
+	 * 查询机器列表
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<PageResult> selectMachineList(String info) {
+		JSONObject json = JSON.parseObject(info);
+		Integer offset = json.getInteger("offset");
+		Integer limit = json.getInteger("limit");
+		offset = (offset == null) ? 1 : offset;
+		limit = (limit == null) ? 20 : limit;
+		PageResult result = null;
+		try {
+			PageHelper.startPage(offset, limit);// 对下一行语句进行分页
+			List<Machine> list = machineMapper.selectMachineList();
+			logger.info("根据用户传入用户信息:第{}条 分页查询机器数据列表,结果：{}条数据", offset + "页===" + limit, list.size());
+			PageInfo<Machine> pageinfo = new PageInfo<>(list);
+			result = new PageResult(pageinfo.getPageSize(), pageinfo.getPageNum(), pageinfo.getTotal(),
+					pageinfo.getList());
+		} catch (Exception e) {
+			logger.error("查询机器数据列表信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.MACHINE_SELECT_FAILED);
+		}
+		return new Response<>(result);
+	}
+
+	/**
+	 * 删除机器数据
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<Integer> deleteMachine(String info) {
+		JSONObject json = JSON.parseObject(info);
+		Integer id = json.getInteger("id");
+		if(id == null || id==0) {
+			logger.info("id不能为空");
+			return new Response<>("00009150", "id不能为空", null);
+		}
+		Integer result = null;
+		try {
+			result = machineMapper.deleteMachine(id);
+			logger.info("根据id:{}删除机器数据,结果：{}", id, result);
+		} catch (Exception e) {
+			logger.error("删除机器数据异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.MACHINE_DELETE_FAILED);
+		}
+		return new Response<>(result);
+	}
+	
+}

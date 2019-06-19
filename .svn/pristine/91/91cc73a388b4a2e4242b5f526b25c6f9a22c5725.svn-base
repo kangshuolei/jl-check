@@ -1,0 +1,92 @@
+package com.hbsi.exception;
+
+public enum ExceptionEnum {
+	SUCCESS("200","OK"),
+	/*用户管理 user manager*/
+	USER_INFO_NULL("00002190","用户信息为空"),
+	USER_INFO_NOT_COMPLETE("00002191","用户信息不完整，请添加完整用户信息"),
+	USER_SAVE_ERROR("00002120","用户添加失败"),
+	
+	//委托单管理
+	ENTRUSTMENT_SAVE_FAILED("00001111", "添加失败"),
+	ENTRUSTMENT_UPDATE_FAILED("00001211", "修改失败"),
+	ENTRUSTMENT_DELETE_FAILED("00001311", "删除失败"),
+	ENTRUSTMENT_SELECT_FAILED("00001411", "查询列表失败"),
+	ENTRUSTMENT_DATA_SELECT_FAILED("00001511", "查询或添加失败"),
+	ENTRUSTMENT_DATA_SAVE_FAILED("00001611", "添加失败"),
+	
+	//试验数据管理
+    SAMPLE_SELECT_FAILED("00005111", "查询列表失败"),
+	SAMPLE_RECORD_SELECT_FAILED("00005211", "查询记录失败"),
+	SAMPLE_ERROR_SELECT_FAILED("00005311", "查询列表失败"),
+	SAMPLE_ERROR_DELETE_FAILED("00005411", "删除失败"),
+	
+	//网络状态
+	NETWORK_SELECT_FAILED("00006111", "查询列表失败"),
+	
+	//钢丝报告处理
+	STEEL_SELECT_FAILED("00007111", "调入失败"),
+	STEEL_WIRE_SELECT_FAILED("00007211", "查询失败"),
+	STEEL_WIRE_SAVE_FAILED("00007311", "添加失败"),
+	STEEL_WIRE_UPDATE_FAILED("00007411", "判定失败"),
+		
+	/**钢丝绳报告*/
+	WIREROPE_SAVE_ERROR("00007120","添加钢丝绳报告失败"),
+	WIREROPE_DATA_SAVE_ERROR("00007220","添加钢丝绳报告数据失败"),
+	
+	 //传入表单数据
+	FROMVALUE_SAVE_FAILED("00013120","表单数据导入数据库失败"),
+	FROMVALUE_SELECT_FAILED("00013110","表单数据查询失败"),
+	FROMVALUE_DELETE_FAILED("00013130","删除表单数据失败"),
+	FROMVALUE_UPDATE_FAILED("00013140","更改表单数据失败"),
+	TENSILESTRENGTH_SAVE_FAILED("00013220","抗拉强度数据导入数据库失败"),
+	TENSILESTRENGTH_SELECT_FAILED("00013210","抗拉强度数据查询失败"),
+	TENSILESTRENGTH_DELETE_FAILED("00013230","删除抗拉强度数据失败"),
+	TENSILESTRENGTH_UPDATE_FAILED("00013240","更改抗拉强度数据失败"),
+	ZINCLAYERWEIGTH_SAVE_FAILED("00013320","锌层重量数据导入数据库失败"),
+	ZINCLAYERWEIGTH_SELECT_FAILED("00013310","锌层重量数据查询失败"),
+	ZINCLAYERWEIGTH_DELETE_FAILED("00013330","删除锌层重量数据失败"),
+	ZINCLAYERWEIGTH_UPDATE_FAILED("00013340","更改锌层重量数据失败"),
+	DIAMETERDEVIATION_SAVE_FAILED("00013420","直径数据导入数据库失败"),
+	DIAMETERDEVIATION_SELECT_FAILED("00013410","直径表数据查询失败"),
+	DIAMETERDEVIATION_DELETE_FAILED("00013430","删除直径表数据失败"),
+	DIAMETERDEVIATION_UPDATE_FAILED("00013440","更改直径表数据失败"),
+	WIREATTRIBUTES_SAVE_FAILED("00013520","wireAttributes导入数据库失败"),
+	WIREATTRIBUTES_SELECT_FAILED("00013510","wireAttributes表数据查询失败"),
+	WIREATTRIBUTES_DELETE_FAILED("00013530","删除wireAttributes表数据失败"),
+	WIREATTRIBUTES_UPDATE_FAILED("00013540","更改wireAttributes表数据失败"),
+	REVERSEBENDING_SAVE_FAILED("00013620","扭转弯曲数据导入数据库失败"),
+	REVERSEBENDING_SELECT_FAILED("00013610","扭转弯曲表数据查询失败"),
+	REVERSEBENDING_DELETE_FAILED("00013630","删除扭转弯曲表数据失败"),
+	REVERSEBENDING_UPDATE_FAILED("00013640","更改扭转弯曲表数据失败"),
+	;
+	
+	private String status;
+
+	private String message;
+
+	ExceptionEnum(String status, String message) {
+		this.status = status;
+		this.message = message;
+	}
+	
+	ExceptionEnum() {
+		
+	}
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	
+}

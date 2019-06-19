@@ -1,0 +1,308 @@
+package com.hbsi.structure.service.impl;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.dao.WireAttributesEn123852002Mapper;
+import com.hbsi.dao.WireAttributesGBT89182006Mapper;
+import com.hbsi.dao.WireAttributesGbt200672017Mapper;
+import com.hbsi.dao.WireAttributesGbt201182017Mapper;
+import com.hbsi.dao.WireAttributesMT7162006Mapper;
+import com.hbsi.dao.WireAttributesYbt45422016Mapper;
+//import com.hbsi.dao.WireAttributesMT7162006Mapper;
+import com.hbsi.dao.WireAttributesYbt53592010Mapper;
+import com.hbsi.domain.WireAttributesEn123852002;
+import com.hbsi.domain.WireAttributesGBT89182006;
+import com.hbsi.domain.WireAttributesGbt200672017;
+import com.hbsi.domain.WireAttributesGbt201182017;
+import com.hbsi.domain.WireAttributesMT7162006;
+import com.hbsi.domain.WireAttributesYbt45422016;
+import com.hbsi.domain.WireAttributesYbt53592010;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.structure.service.StructureServie;
+
+/**
+ * 根据ID,显示结构信息
+ * 
+ * @author lijizhi
+ *
+ */
+@Service
+public class StructureServiceImpl implements StructureServie {
+
+	Logger logger = LoggerFactory.getLogger(this.getClass());
+
+	// 注入所有结构
+	@Autowired
+	private WireAttributesGbt200672017Mapper wireAttributesGbt200672017Mapper;
+	@Autowired
+	private WireAttributesGbt201182017Mapper wireAttributesGbt201182017Mapper;
+	@Autowired
+	private WireAttributesGBT89182006Mapper wireAttributesGBT89182006Mapper;
+	@Autowired
+	private WireAttributesYbt45422016Mapper wireAttributesYbt45422016Mapper;
+	@Autowired
+	private WireAttributesYbt53592010Mapper wireAttributesYbt53592010Mapper;
+	@Autowired
+	private WireAttributesEn123852002Mapper wireAttributesEn123852002Mapper;
+
+	/**
+	 * 
+	 * @author lijizhi 根据ID,显示所有的结构信息
+	 * @return
+	 * @date 12.7
+	 */
+	@Override
+	public Response<List<?>> showAllStructureById(String regularNum) {
+		// 提取 regularNum中的数字
+		if (regularNum != null && !regularNum.equals("")) {// 判断是否为空
+			String num = regularNum.trim();// 去除字符串中的空格
+			String strNew = getNumString(num);
+			List<String> structureAll = new ArrayList<String>();// 用于存放所有结构
+
+			if (strNew.equals("200672017")) {
+				try {// 查询成功
+					this.success();
+					// selectGbt200672017.removeAll(Collections.singleton(null));
+					for (WireAttributesGbt200672017 Gbt200672017 : wireAttributesGbt200672017Mapper
+							.selectWireAttributesGbt200672017Structure()) {
+						String structure = Gbt200672017.getStructure();
+						structureAll.add(structure);
+					}
+					return new Response<List<?>>(structureAll);
+				} catch (Exception e) {// 查询失败
+					logger.error("查询失败,原因:", e);
+					error();
+				}
+			} else if (strNew.equals("201182017")) {
+				try {// 查询成功
+					this.success();
+					for (WireAttributesGbt201182017 Gbt201182017 : wireAttributesGbt201182017Mapper
+							.selectWireAttributesGbt201182017Structure()) {
+						String structure = Gbt201182017.getStructure();
+						structureAll.add(structure);
+					}
+					return new Response<List<?>>(structureAll);
+				} catch (Exception e) {// 查询失败
+					logger.error("查询失败,原因:", e);
+					error();
+				}
+			} else if (strNew.equals("89182006")) {
+				try {// 查询成功
+					this.success();
+					for (WireAttributesGBT89182006 GBT89182006 : wireAttributesGBT89182006Mapper
+							.selectWireAttributesGBT89182006Structure()) {
+						String structure = GBT89182006.getStructure();
+						structureAll.add(structure);
+					}
+					return new Response<List<?>>(structureAll);
+				} catch (Exception e) {// 查询失败
+					logger.error("查询失败,原因:", e);
+					error();
+				}
+			}else if (strNew.equals("123854200212008")) {
+				try {// 查询成功
+					this.success();
+					for (WireAttributesEn123852002 En123852002 : wireAttributesEn123852002Mapper
+							.selectWireAttributesEn123852002Structure()) {
+						String structure = En123852002.getStructure();
+						structureAll.add(structure);
+					}
+					return new Response<List<?>>(structureAll);
+				} catch (Exception e) {// 查询失败
+					logger.error("查询失败,原因:", e);
+					error();
+				}
+			}
+			else if (strNew.equals("45422016")) {
+				try {// 查询成功
+					this.success();
+					for (WireAttributesYbt45422016 Ybt45422016 : wireAttributesYbt45422016Mapper
+							.selectAllStruc()) {
+						String structure = Ybt45422016.getStructure();
+						structureAll.add(structure);
+					}
+					return new Response<List<?>>(structureAll);
+				} catch (Exception e) {// 查询失败
+					logger.error("查询失败,原因:", e);
+					error();
+				}
+			}
+
+			else if (strNew.equals("53592010")) {
+				try {// 查询成功
+					this.success();
+					for (WireAttributesYbt53592010 MT7162006 : wireAttributesYbt53592010Mapper
+							.selectWireAttributesYbt53592010Structure()) {
+						String structure = MT7162006.getStructure();
+						structureAll.add(structure);
+					}
+					return new Response<List<?>>(structureAll);
+
+				} catch (Exception e) {// 查询失败
+					logger.error("查询失败,原因:", e);
+					error();
+				}
+			}
+		} else {
+			error();
+		}
+		throw new BaseException(ExceptionEnum.WIREATTRIBUTES_SELECT_FAILED);
+	}
+
+	/**
+	 * 根据模糊结构名查询结构列表
+	 */
+	@Override
+	public Response<List<String>> showAllStruByBlurStruc(String info) {
+
+		JSONObject json = JSONObject.parseObject(info);
+		// 根据标准号确定从哪个标准表中查找值
+		String regularNum = json.getString("regularNum");
+		// 然后根据模糊的结构名查询结构列表
+		String blurStruc = json.getString("blurStruc");
+
+		// 提取 regularNum中的数字
+		String strNew = getNumString(regularNum.trim());
+		// 存储返回的结构列表
+		List<String> structureAll = new ArrayList<String>();
+
+		if (strNew.equals("200672017")) {
+			try {// 查询成功
+				this.success();
+				// selectGbt200672017.removeAll(Collections.singleton(null));
+				for (WireAttributesGbt200672017 Gbt200672017 : wireAttributesGbt200672017Mapper
+						.selectByBlurStruc(blurStruc)) {
+					String structure = Gbt200672017.getStructure();
+					structureAll.add(structure);
+				}
+				return new Response<List<String>>(structureAll);
+			} catch (Exception e) {// 查询失败
+				logger.error("查询失败,原因:", e);
+				error();
+			}
+		} else if (strNew.equals("201182017")) {
+			try {// 查询成功
+				this.success();
+				for (WireAttributesGbt201182017 Gbt201182017 : wireAttributesGbt201182017Mapper
+						.selectByBlurStruc(blurStruc)) {
+					String structure = Gbt201182017.getStructure();
+					structureAll.add(structure);
+				}
+				return new Response<List<String>>(structureAll);
+			} catch (Exception e) {// 查询失败
+				logger.error("查询失败,原因:", e);
+				error();
+			}
+		} else if (strNew.equals("89182006")) {
+			try {// 查询成功
+				this.success();
+				for (WireAttributesGBT89182006 GBT89182006 : wireAttributesGBT89182006Mapper
+						.selectByBlurStruc(blurStruc)) {
+					String structure = GBT89182006.getStructure();
+					structureAll.add(structure);
+				}
+				return new Response<List<String>>(structureAll);
+			} catch (Exception e) {// 查询失败
+				logger.error("查询失败,原因:", e);
+				error();
+			}
+		} else if (strNew.equals("45422016")) {
+			try {// 查询成功
+				this.success();
+				for (WireAttributesYbt45422016 Ybt45422016 : wireAttributesYbt45422016Mapper
+						.selectByBlurStruc(blurStruc)) {
+					String structure = Ybt45422016.getStructure();
+					structureAll.add(structure);
+				}
+				return new Response<List<String>>(structureAll);
+			} catch (Exception e) {// 查询失败
+				logger.error("查询失败,原因:", e);
+				error();
+			}
+		}else if (strNew.equals("123854200212008")) {
+			try {// 查询成功
+				this.success();
+				for (WireAttributesEn123852002 En123852002 : wireAttributesEn123852002Mapper
+						.selectBlurStructure(blurStruc)) {
+					String structure = En123852002.getStructure();
+					structureAll.add(structure);
+				}
+				return new Response<List<String>>(structureAll);
+			} catch (Exception e) {// 查询失败
+				logger.error("查询失败,原因:", e);
+				error();
+			}
+		} else if (strNew.equals("53592010")) {
+			try {// 查询成功
+				this.success();
+				for (WireAttributesYbt53592010 MT7162006 : wireAttributesYbt53592010Mapper
+						.selectByBlurStruc(blurStruc)) {
+					String structure = MT7162006.getStructure();
+					structureAll.add(structure);
+				}
+				return new Response<List<String>>(structureAll);
+
+			} catch (Exception e) {// 查询失败
+				logger.error("查询失败,原因:", e);
+				error();
+			}
+		} else {
+			error();
+		}
+		throw new BaseException(ExceptionEnum.WIREATTRIBUTES_SELECT_FAILED);
+	}
+
+	private String getNumString(String regularNum) {
+		// 提取 regularNum中的数字
+		String strNew = "";// 存放新的只有数字的 字符串
+		if (regularNum != null && !regularNum.equals("")) {// 判断是否为空
+			String num = regularNum.trim();// 去除字符串中的空格
+			for (int i = 0; i < num.length(); i++) {
+				if (num.charAt(i) >= 48 && num.charAt(i) <= 57) {// 提取数字
+					strNew += num.charAt(i);
+				}
+			}
+		}
+		return strNew;
+	}
+
+	/**
+	 * 查询失败
+	 */
+	private static void error() {
+		throw new BaseException(ExceptionEnum.WIREATTRIBUTES_SELECT_FAILED);
+	}
+
+	/**
+	 * 查询成功
+	 */
+	private void success() {
+		logger.info("查询成功");
+	}
+	/**
+	 * 提取所有的结构
+	 * 
+	 * @param structures
+	 * @param Object     structuresObject 需要遍历的对象
+	 * @return
+	 */
+//	 WireAttributesGbt200672017 Gbt200672017 = new WireAttributesGbt200672017();
+//	private  List<?> structure(List<?> structures,Object structuresObject){
+//		 List<String> structureAll = new ArrayList<String>();
+//			for(Object Gbt200672017 : structures) {
+//				String structure = ((WireAttributesGBT89182006) Gbt200672017).getStructure();
+//				structureAll.add(structure);
+//			}
+//		return structureAll;
+//	}
+
+}

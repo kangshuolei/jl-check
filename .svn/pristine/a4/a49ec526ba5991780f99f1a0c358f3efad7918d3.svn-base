@@ -1,0 +1,30 @@
+package com.hbsi.export.service;
+
+import java.io.FileNotFoundException;
+import java.util.Map;
+
+import com.hbsi.response.Response;
+
+public interface ReportExportService {
+
+	/**
+	 * 导出报告
+	 * @param entrustNum
+	 * @return
+	 * @throws FileNotFoundException 
+	 */
+	public Response<Map<String, Object>> ExportReport(String entrustNum) throws FileNotFoundException;
+	/**
+	 * 报告的头文件
+	 * @param entrustNum
+	 * @return
+	 * @throws Exception 
+	 */
+	public Map<String,Object> HeadOfReport(String entrustNum) throws Exception;
+	/**
+	 * 拆股实验信息
+	 * @param entrustNum
+	 * @return
+	 */
+	public Map<String,Object> BreakStockData(String entrustNum);
+}

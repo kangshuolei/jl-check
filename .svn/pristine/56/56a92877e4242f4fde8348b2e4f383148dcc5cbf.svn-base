@@ -1,0 +1,34 @@
+package com.hbsi.user.service;
+
+import com.hbsi.domain.User;
+import com.hbsi.response.Response;
+
+public interface UserService {
+	/**
+	 * @description 添加用户  add user
+	 * @param user
+	 * @return
+	 */
+	Response<User> saveUser(User user);
+	/**
+	 * 用户登录
+	 * @param user
+	 * @return
+	 */
+	Response<User> login(User user);
+	/**
+	 * 删除用户
+	 * @param id
+	 * @return
+	 */
+	Response<Integer> deleteUser(Integer id);
+	/**
+	 * 修改密码
+	 * @param username
+	 * @param oldPassword
+	 * @param newPassword
+	 * @return
+	 */
+	Response<User> updateUserPassword(String username,String oldPassword,String newPassword);
+	
+}

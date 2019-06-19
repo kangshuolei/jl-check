@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<property name="COMMON_FILE_LOG_PATTERN" value="-%d{yyyy-MM-dd HH:mm:ss.SSS} ${LOG_LEVEL_PATTERN:-%5p} ${PID:- } --- [%t] [%X{__trace_id}] %-40.40logger{39} : %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}" />
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+      <!-- 控制台打印日志的相关配置 --> 
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender"> 
+    <!-- 日志格式 -->
+    <layout>
+        <pattern>${COMMON_FILE_LOG_PATTERN}</pattern>
+    </layout>
+<!--     日志级别过滤器
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      过滤的级别
+      <level>info</level>
+      匹配时的操作：接收（记录）
+      <onMatch>ACCEPT</onMatch>
+      不匹配时的操作：拒绝（不记录）
+      <onMismatch>DENY</onMismatch>
+    </filter> -->
+  </appender>
+   <!-- 文件保存日志的相关配置 --> 
+  <appender name="DEBUG-OUT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+     <!-- 保存日志文件的路径 -->
+    <file>../JLlog/debug.log</file>
+    <!-- 日志格式 -->
+    <encoder>
+        <pattern>${COMMON_FILE_LOG_PATTERN}</pattern>
+    </encoder>
+    <!-- 日志级别过滤器 -->
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <!-- 过滤的级别 -->
+      <level>DEBUG</level>
+      <!-- 匹配时的操作：接收（记录） -->
+      <onMatch>ACCEPT</onMatch>
+      <!-- 不匹配时的操作：拒绝（不记录） -->
+      <onMismatch>DENY</onMismatch>
+    </filter>
+    <!-- 循环政策：基于时间创建日志文件 -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <!-- 日志文件名格式 -->
+      <fileNamePattern>debug.%d{yyyy-MM-dd}.log</fileNamePattern>
+      <!-- 最大保存时间：30天-->
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+  </appender>
+   <!-- 文件保存日志的相关配置 --> 
+  <appender name="ERROR-OUT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+     <!-- 保存日志文件的路径 -->
+    <file>../JLlog/error.log</file>
+    <!-- 日志格式 -->
+    <encoder>
+        <pattern>${COMMON_FILE_LOG_PATTERN}</pattern>
+    </encoder>
+    <!-- 日志级别过滤器 -->
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <!-- 过滤的级别 -->
+      <level>ERROR</level>
+      <!-- 匹配时的操作：接收（记录） -->
+      <onMatch>ACCEPT</onMatch>
+      <!-- 不匹配时的操作：拒绝（不记录） -->
+      <onMismatch>DENY</onMismatch>
+    </filter>
+    <!-- 循环政策：基于时间创建日志文件 -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <!-- 日志文件名格式 -->
+      <fileNamePattern>error.%d{yyyy-MM-dd}.log</fileNamePattern>
+      <!-- 最大保存时间：30天-->
+      <maxHistory>30</maxHistory>
+    </rollingPolicy>
+  </appender>
+  
+    <root level="debug">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="DEBUG-OUT"/>
+        <appender-ref ref="ERROR-OUT"/>
+    </root>
+    <logger name="com.hbsi" level="debug"/>
+</configuration>

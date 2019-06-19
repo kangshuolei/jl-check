@@ -1,0 +1,379 @@
+package com.hbsi.export.service.impl;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.hssf.util.CellReference;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.VersonNumberMapper;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.export.service.TestmanRecordService;
+import com.hbsi.response.Response;
+
+@Service
+public class TestmanRecordServiceImpl implements TestmanRecordService {
+
+	@Autowired
+	private VersonNumberMapper versonNumberMapper;
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;
+
+	/**
+	 * 这个方法是直接导出文件到d盘目录下，不给前端了
+	 * 
+	 * @throws Exception
+	 */
+	public Response<?> ExportTestmanRecord(String entrustNum) throws Exception {
+
+		if (entrustNum == null || "".equals(entrustNum)) {
+			return new Response<>("000017110", "传入的委托单号为空", null);
+		} else {
+			/**
+			 * 判定当前d盘下有没有对应的文件名，来确实是否新建一个excel文档
+			 */
+			// 确定是白班还是夜班
+			SimpleDateFormat fullFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+			String date = fullFormat.format(new Date());
+			String hM = date.substring(8, 12);
+			String time = Integer.parseInt(hM) > 1830 ? "Y" : "B";
+			// 路径确定
+			SimpleDateFormat monthFormat = new SimpleDateFormat("yyyy-MM");
+			String month = monthFormat.format(new Date());
+			SimpleDateFormat dayFormat = new SimpleDateFormat("yyMMdd");
+			String day = dayFormat.format(new Date());
+			// 文件名
+			String fileName = day + time + ".xls";
+
+//			实际环境windows上的路径“D:\测试人员记录表\2009-01\”
+			String basePath = "D:"+File.separator+"钢丝记录"+File.separator+month;
+			File file = new File(basePath);
+			if(!file.exists()) {
+				file.mkdirs();
+				System.out.println(file.getAbsolutePath());
+			}
+			// 在mac上测试所用路径
+//			String basePath = "/Users/admin/Desktop/xiangze";
+			String finalXlsxPath = basePath + File.separator + fileName;
+			System.out.println(finalXlsxPath);
+			// 如果该文件已经存在，说明这时候的导出是直接写入;如果不存在的话，说明应该重新创建文件
+			if (new File(finalXlsxPath).exists()) {
+				// 读取了模板内所有sheet内容，存储在下面sheet中，作为新的excel
+				List<Map<Integer, Object>> dataList = getRecordList(entrustNum);
+				// 调用writeIntoSheet方法，将list数据写入到sheet中
+				writeExcel(dataList, finalXlsxPath);
+
+			} else {
+				List<Map<Integer, Object>> dataList = getRecordList(entrustNum);
+				// 当该文件名不存在时，第一步操作是根据模板创建一个新的excel，写出到目录下
+				writeExcelFirstStep(dataList, finalXlsxPath);
+				// 第二步是读取这个excel，然后进行读写操作。分两步走是为了统一两次的调用的方法
+				writeExcel(dataList, finalXlsxPath);
+			}
+			return new Response("200", "ok", null);
+		}
+	}
+
+	/**
+	 * 该方法是获取path路径下的所有文件名,该方法为简易方法
+	 * 
+	 * @param path
+	 * @return
+	 */
+	public List<String> getFileNames(String path) {
+		File file = new File(path);
+		String[] fileNames = file.list();
+		return Arrays.asList(fileNames);
+	}
+
+	/**
+	 * 第一次调用的写操作
+	 * 
+	 * @param dataList
+	 * @param finalXlsxPath
+	 * @throws IOException
+	 */
+	public void writeExcelFirstStep(List<Map<Integer, Object>> dataList, String finalXlsxPath) {
+		try (InputStream stream = getClass().getClassLoader().getResourceAsStream("templates/testmanRecord.xls");
+				POIFSFileSystem fs = new POIFSFileSystem(stream);
+				FileOutputStream fos = new FileOutputStream(finalXlsxPath);
+				Workbook workBook = new HSSFWorkbook(fs)) {
+			// sheet 对应一个工作页
+			HSSFSheet sheet = (HSSFSheet) workBook.getSheetAt(0);
+			// 设置一下版本号
+			sheet.getRow(1).getCell(18)
+					.setCellValue(versonNumberMapper.selectByReportCategory("检测员记录表").getVersonNumber().toString());
+			// 将workbook写入到out流中
+			workBook.write(fos);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		System.out.println("数据导出成功");
+	}
+
+	/**
+	 * 第二次及以后调用的调用的写操作
+	 * 
+	 * @param dataList
+	 * @param finalXlsxPath
+	 * @throws Exception
+	 */
+	public void writeExcel(List<Map<Integer, Object>> dataList, String finalXlsxPath) throws Exception {
+		// 读取Excel文档
+//		File finalXlsxFile = new File(finalXlsxPath);
+		try (FileInputStream fis = new FileInputStream(finalXlsxPath);
+				Workbook workBook = new HSSFWorkbook(fis);
+				FileOutputStream out = new FileOutputStream(finalXlsxPath)) {
+			HSSFSheet sheet = (HSSFSheet) workBook.getSheetAt(0);
+			WriteDataIntoCell(dataList, sheet, workBook);
+			for (int i = 7; i < 20; i++) {
+				sheet.autoSizeColumn(i);
+			}
+			// 创建文件输出流，准备输出电子表格：这个必须有，否则你在sheet上做的任何操作都不会有效
+			workBook.write(out);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		System.out.println("数据导出成功");
+	}
+
+	/**
+	 * 开始写入操作
+	 * 
+	 * @param dataList
+	 * @param sheet
+	 * @param workBook
+	 */
+	public void WriteDataIntoCell(List<Map<Integer, Object>> dataList, HSSFSheet sheet, Workbook workBook) {
+		/**
+		 * 读取的最大行数，总是有空行，所以这么搞一搞，删除空行
+		 */
+		Integer realNum = getRealNumberOfRow(sheet);
+		realNum++;
+		/**
+		 * 往Excel中写新数据
+		 */
+		for (int j = 0; j < dataList.size(); j++) {
+			// 创建一行：从第二行开始，跳过属性列
+			Row row = sheet.createRow(j + realNum);
+			Map<Integer, Object> map = dataList.get(j);
+			Set<Integer> keys = map.keySet();
+			for (int k = 0; k < keys.size(); k++) {
+				// 新建单元格，设置格式
+				Cell cell = sheet.getRow(j + realNum).createCell(k);
+				// 用val存储map中一条数据，验证格式，存进excel中
+				Object val = map.get(k);
+				// 根据val的不同类型，直接存储到excel中，因为excel可以识别数据类型
+				if (val == null) {
+					cell.setCellValue("");
+				} else if (val instanceof String) {
+					cell.setCellValue((String) val);
+				} else if (val instanceof Integer) {
+					cell.setCellValue((Integer) val);
+				} else if (val instanceof Long) {
+					cell.setCellValue((Long) val);
+				} else if (val instanceof Double) {
+					cell.setCellValue((Double) val);
+				} else if (val instanceof Float) {
+					cell.setCellValue((Float) val);
+				} else if (val instanceof Date) {
+					DataFormat format = workBook.createDataFormat();
+//					style.setDataFormat(format.getFormat("yyyy/MM/dd"));
+					cell.setCellValue((Date) val);
+				} else if (val instanceof BigDecimal) {
+					double doubleVal = ((BigDecimal) val).doubleValue();
+					DataFormat format = workBook.createDataFormat();
+//					style.setDataFormat(format.getFormat("￥#,##0.00"));
+					cell.setCellValue(doubleVal);
+				} else {
+					cell.setCellValue(val.toString());
+				}
+			}
+		}
+	}
+
+	/**
+	 * 获取有效行数的方法。
+	 * 
+	 * @param sheet
+	 * @return
+	 */
+	public static Integer getRealNumberOfRow(HSSFSheet sheet) {
+		// 获取第一个画布
+		CellReference cellReference = new CellReference("A4");
+		boolean flag = false;
+		for (int i = cellReference.getRow(); i <= sheet.getLastRowNum();) {
+			Row r = sheet.getRow(i);
+			if (r == null) {
+				// 如果是空行（即没有任何数据、格式），直接把它以下的数据往上移动
+				sheet.shiftRows(i + 1, sheet.getLastRowNum(), -1);
+				continue;
+			}
+			flag = false;
+			for (Cell c : r) {
+				if (c.getCellType() != Cell.CELL_TYPE_BLANK) {
+					flag = true;
+					break;
+				}
+			}
+			if (flag) {
+				i++;
+				continue;
+			} else {// 如果是空白行（即可能没有数据，但是有一定格式）
+				if (i == sheet.getLastRowNum()) {
+					// 如果到了最后一行，直接将那一行remove掉
+					sheet.removeRow(r);
+				} else {
+					// 如果还没到最后一行，则数据往上移一行
+					sheet.shiftRows(i + 1, sheet.getLastRowNum(), -1);
+				}
+			}
+		}
+		System.out.println("有效行数为:" + (sheet.getLastRowNum() + 1));
+		return sheet.getLastRowNum();
+
+	}
+
+	/**
+	 * 获取记录列表
+	 * 
+	 * @param entrustNum
+	 * @return
+	 */
+	public List<Map<Integer, Object>> getRecordList(String entrustNum) {
+
+		List<Map<Integer, Object>> mapList = new ArrayList<Map<Integer, Object>>();
+		List<SteelWireData> list = steelWireDataMapper.selectByEnNum(entrustNum);
+		for (int i = 0; i < list.size(); i++) {
+			SteelWireData steelWiredata = list.get(i);
+			Map<Integer, Object> map = new LinkedHashMap<>();
+			// 这个序号应该是生产序号：白1头
+			/**
+			 * 数据库中存储的属性，Varchar类型的默认值都定义成“”，其他类型必须进行判定是否为null
+			 */
+			if (ObjectUtils.isEmpty(steelWiredata.getProductionNumber())) {
+				map.put(0, "");
+			} else {
+				map.put(0, steelWiredata.getProductionNumber());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getpDiamete())) {
+				map.put(1, "");
+			} else {
+				map.put(1, steelWiredata.getpDiamete());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getfDiamete())) {
+				map.put(2, "");
+			} else {
+				map.put(2, steelWiredata.getfDiamete());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getStrengthLevel())) {
+				map.put(3, "");
+			} else {
+				map.put(3, Integer.parseInt(steelWiredata.getStrengthLevel()));
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getUse())) {
+				map.put(4, "");
+			} else {
+				map.put(4, steelWiredata.getUse());
+			}
+			map.put(5, steelWiredata.getSurface());
+			if (ObjectUtils.isEmpty(steelWiredata.getBreakTensile())) {
+				map.put(6, "");
+			} else {
+				map.put(6, steelWiredata.getBreakTensile().toString());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getTensileStrength())) {
+				map.put(7, "");
+			} else {
+				map.put(7, steelWiredata.getTensileStrength());
+			}
+			// 打结率
+			if (ObjectUtils.isEmpty(steelWiredata.getKnotTension())) {
+				map.put(8, "");
+			} else {
+				map.put(8, steelWiredata.getKnotTension());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getKnotRate())) {
+				map.put(9, "");
+			} else {
+				map.put(9, steelWiredata.getKnotRate());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getTorsionTimes())) {
+				map.put(10, "");
+			} else {
+				map.put(10, steelWiredata.getTorsionTimes());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getBendingTimes())) {
+				map.put(11, "");
+			} else {
+				map.put(11, steelWiredata.getBendingTimes());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getSteelLength())) {
+				map.put(12, "");
+			} else {
+				map.put(12, steelWiredata.getSteelLength());
+			}
+			map.put(13, steelWiredata.getJudge());
+			if (ObjectUtils.isEmpty(steelWiredata.getBoard())) {
+				map.put(14, "");
+			} else {
+				map.put(14, steelWiredata.getBoard());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getWheelNumber())) {
+				map.put(15, "");
+			} else {
+				map.put(15, steelWiredata.getWheelNumber());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getGradeSteel())) {
+				map.put(16, "");
+			} else {
+				map.put(16, steelWiredata.getGradeSteel());
+			}
+			if (ObjectUtils.isEmpty(steelWiredata.getProducer())) {
+				map.put(17, "");
+			} else {
+				map.put(17, steelWiredata.getProducer());
+			}
+			// 记录号应有的样式为：批次号+第几根钢丝
+			Integer sampleBatch = entrustmentMapper.selectEntrustmentNumber(entrustNum).getSampleBatch();
+			DecimalFormat df = new DecimalFormat("000");
+			String steelNum = df.format(i + 1);
+			map.put(18, sampleBatch + "-" + steelNum);
+			if (ObjectUtils.isEmpty(steelWiredata.getMemo())) {
+				map.put(19, "");
+			} else {
+				map.put(19, steelWiredata.getMemo());
+			}
+			mapList.add(map);
+		}
+		return mapList;
+
+	}
+}

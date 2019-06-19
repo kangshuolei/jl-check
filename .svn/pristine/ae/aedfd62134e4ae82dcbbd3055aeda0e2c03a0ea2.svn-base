@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hbsi.dao.SampleRecordMapper">
+  <resultMap id="BaseResultMap" type="com.hbsi.domain.SampleRecord">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="entrustment_number" jdbcType="VARCHAR" property="entrustmentNumber" />
+    <result column="sample_batch" jdbcType="INTEGER" property="sampleBatch" />
+    <result column="sample_number" jdbcType="INTEGER" property="sampleNumber" />
+    <result column="experimental_data" jdbcType="DOUBLE" property="experimentalData" />
+    <result column="test_members_number" jdbcType="VARCHAR" property="testMembersNumber" />
+    <result column="type" jdbcType="VARCHAR" property="type" />
+    <result column="machine_type" jdbcType="VARCHAR" property="machineType" />
+    <result column="machine_number" jdbcType="VARCHAR" property="machineNumber" />
+    <result column="create_date" jdbcType="DATE" property="createDate" />
+    <result column="state" jdbcType="CHAR" property="state" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, entrustment_number, sample_batch, experimental_data, test_members_number, type, sample_number,
+    machine_type, machine_number, create_date, state
+  </sql>
+  
+  <!-- 添加委托单号到试验记录表(根据批次号批量添加委托单号) -->
+  <update id="insertSampleEntNum" parameterType="com.hbsi.domain.SampleRecord">   
+    update sample_record
+    set entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR}
+    where sample_batch = #{sampleBatch,jdbcType=INTEGER} and state&lt;&gt;'999'
+  </update>
+  <!-- 根据批次号和机器类型查询试验数据 -->
+  <select id="selectBySampleAndType" parameterType="com.hbsi.domain.SampleRecord" resultMap="BaseResultMap">
+  	select <include refid="Base_Column_List" />
+    from sample_record where sample_batch = #{sampleBatch,jdbcType=INTEGER} and state&lt;&gt;'999' and type=#{type} order by sample_number
+  </select>
+  
+  <!-- 查询委托单号是否已存在 -->
+  <select id="selectEntNum" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select id, entrustment_number, sample_batch
+    from sample_record
+    where entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR} and state&lt;&gt;'999'
+  </select>
+  <!-- 查询错误数据 -->
+  <select id="selectErrorData" parameterType="com.hbsi.domain.SampleRecord" resultMap="BaseResultMap">
+  	select <include refid="Base_Column_List" />
+    from sample_record where state&lt;&gt;'999' 
+    and sample_batch=#{sampleBatch}
+    <if test="type!=null and type!=''">
+		   and type = #{type,jdbcType=VARCHAR}
+	</if>
+	<if test="machineNumber!=null and machineNumber!=''">
+		   and machine_number = #{machineNumber,jdbcType=VARCHAR}
+	</if>
+	group by sample_batch, `sample_number`,machine_number,create_date
+     order by sample_number asc,type,machine_number asc,create_date asc
+  </select>
+  
+   <!-- 根据批次号删除委托单号，实则修改状态值为999 -->
+  <update id="deleteEntNum" parameterType="java.lang.Integer">
+    update sample_record
+    set state = '999'
+    where sample_batch = #{sampleBatch,jdbcType=INTEGER}
+  </update>
+  
+  <!-- 查询试验记录 -->
+  <select id="selectSampleRecordList" parameterType="com.hbsi.domain.SampleRecord" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from sample_record
+    where state&lt;&gt;'999'
+   <!--  <if test="entrustmentNumber!=null and entrustmentNumber!=''">
+		   and entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR}
+	</if> -->
+    <if test="sampleBatch!=null and sampleBatch!=''">
+		   and sample_batch = #{sampleBatch,jdbcType=INTEGER}
+	</if>
+    <if test="type!=null and type!=''">
+		   and type = #{type,jdbcType=VARCHAR}
+	</if>
+	<if test="machineNumber!=null and machineNumber!=''">
+		   and machine_number = #{machineNumber,jdbcType=VARCHAR}
+	</if>
+	group by sample_batch, `sample_number`,machine_number,create_date
+  </select>
+  <!-- 查询错误处理列表 -->
+  <select id="selectSampleErrorList" parameterType="com.hbsi.domain.SampleRecord" resultMap="BaseResultMap">
+   <!--  select 
+    <include refid="Base_Column_List" />
+    from sample_record
+    where state&lt;&gt;'999'
+    <if test="sampleBatch!=null">
+		   and sample_batch = #{sampleBatch,jdbcType=INTEGER}
+	</if>
+    <if test="type!=null and type!=''">
+		   and type=#{type,jdbcType=VARCHAR}
+	</if>
+	<if test="machineNumber!=null and machineNumber!=''">
+		   and machine_number = #{machineNumber,jdbcType=VARCHAR}
+	</if>
+	 order by type desc,create_date desc,sample_number asc -->
+	  select
+	   <include refid="Base_Column_List" />
+	    from sample_record
+	    where state&lt;&gt;'999'
+	    and (entrustment_number is null or entrustment_number='' or entrustment_number not in(select entrustment_number from steel_wire_data where state&lt;&gt;'999')) 
+	    <if test="sampleBatch!=null">
+		   and sample_batch = #{sampleBatch,jdbcType=INTEGER}
+		</if>
+	    <if test="type!=null and type!=''">
+			   and type=#{type,jdbcType=VARCHAR}
+		</if>
+		<if test="machineNumber!=null and machineNumber!=''">
+			   and machine_number = #{machineNumber,jdbcType=VARCHAR}
+		</if>
+	    order by type asc ,sample_number asc
+  </select>
+  <!-- 删除错误数据，实则修改状态值为999 -->
+  <update id="deleteSampleError" parameterType="java.lang.Integer">
+    update sample_record
+    set state = '999'
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <!-- 查询委托单号和试验批次 -->
+  <select id="selectSampleBatch" resultMap="BaseResultMap">
+  	<!-- select distinct sample_batch,entrustment_number from sample_record where date_format(create_date,'%Y-%m-%d')=#{dateTime} -->
+  	select distinct sample_batch,entrustment_number from sample_record where state&lt;&gt;'999'
+  </select>
+  <!-- 根据委托单号查询实验数据 -->
+  <select id="selectSampleData" parameterType="java.lang.String" resultMap="BaseResultMap">
+  	select 
+  	<include refid="Base_Column_List" /> 
+  	from sample_record where entrustment_number=#{entrustmentNumber} and state&lt;&gt;'999' order by create_date
+  </select>
+  <!-- 根据批次号查询实验数据 -->
+  <select id="selectData" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+  	select 
+  	<include refid="Base_Column_List" /> 
+  	from sample_record where sample_batch=#{sampleBatch} and state&lt;&gt;'999' order by sample_number
+  </select>
+  <!-- 查询用户是否存在 -->
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from sample_record
+    where id = #{id,jdbcType=INTEGER} and state = '000'
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from sample_record
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.hbsi.domain.SampleRecord">
+    insert into sample_record (id, entrustment_number, sample_batch, 
+      experimental_data, test_members_number, type, sample_number,
+      machine_type, machine_number, create_date, 
+      state)
+    values (#{id,jdbcType=INTEGER}, #{entrustmentNumber,jdbcType=VARCHAR}, #{sampleBatch,jdbcType=INTEGER}, #{sampleNumber,jdbcType=INTEGER} 
+      #{experimentalData,jdbcType=DOUBLE}, #{testMembersNumber,jdbcType=VARCHAR}, #{type,jdbcType=VARCHAR}, 
+      #{machineType,jdbcType=VARCHAR}, #{machineNumber,jdbcType=VARCHAR}, #{createDate,jdbcType=DATE}, 
+      #{state,jdbcType=CHAR})
+  </insert>
+  <insert id="insertSelective" parameterType="com.hbsi.domain.SampleRecord">
+    insert into sample_record
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="entrustmentNumber != null">
+        entrustment_number,
+      </if>
+      <if test="sampleBatch != null">
+        sample_batch,
+      </if>
+      <if test="sampleNumber != null">
+        sample_number,
+      </if>
+      <if test="experimentalData != null">
+        experimental_data,
+      </if>
+      <if test="testMembersNumber != null">
+        test_members_number,
+      </if>
+      <if test="type != null">
+        type,
+      </if>
+      <if test="machineType != null">
+        machine_type,
+      </if>
+      <if test="machineNumber != null">
+        machine_number,
+      </if>
+      <if test="createDate != null">
+        create_date,
+      </if>
+      <if test="state != null">
+        state,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="entrustmentNumber != null">
+        #{entrustmentNumber,jdbcType=DOUBLE},
+      </if>
+      <if test="sampleBatch != null">
+        #{sampleBatch,jdbcType=INTEGER},
+      </if>
+      <if test="sampleNumber != null">
+        #{sampleNumber,jdbcType=INTEGER},
+      </if>
+      <if test="experimentalData != null">
+        #{experimentalData,jdbcType=DOUBLE},
+      </if>
+      <if test="testMembersNumber != null">
+        #{testMembersNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="type != null">
+        #{type,jdbcType=VARCHAR},
+      </if>
+      <if test="machineType != null">
+        #{machineType,jdbcType=VARCHAR},
+      </if>
+      <if test="machineNumber != null">
+        #{machineNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="createDate != null">
+        #{createDate,jdbcType=DATE},
+      </if>
+      <if test="state != null">
+        #{state,jdbcType=CHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.hbsi.domain.SampleRecord">
+    update sample_record
+    <set>
+      <if test="entrustmentNumber != null">
+        entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="sampleBatch != null">
+        sample_batch = #{sampleBatch,jdbcType=INTEGER},
+      </if>
+      <if test="sampleNumber != null">
+        sample_number = #{sampleNumber,jdbcType=INTEGER},
+      </if>
+      <if test="experimentalData != null">
+        experimental_data = #{experimentalData,jdbcType=DOUBLE},
+      </if>
+      <if test="testMembersNumber != null">
+        test_members_number = #{testMembersNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="type != null">
+        type = #{type,jdbcType=VARCHAR},
+      </if>
+      <if test="machineType != null">
+        machine_type = #{machineType,jdbcType=VARCHAR},
+      </if>
+      <if test="machineNumber != null">
+        machine_number = #{machineNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="createDate != null">
+        create_date = #{createDate,jdbcType=DATE},
+      </if>
+      <if test="state != null">
+        state = #{state,jdbcType=CHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.hbsi.domain.SampleRecord">
+    update sample_record
+    set entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR},
+      sample_batch = #{sampleBatch,jdbcType=INTEGER},
+      sample_number = #{sampleNumber,jdbcType=INTEGER},
+      experimental_data = #{experimentalData,jdbcType=DOUBLE},
+      test_members_number = #{testMembersNumber,jdbcType=VARCHAR},
+      type = #{type,jdbcType=VARCHAR},
+      machine_type = #{machineType,jdbcType=VARCHAR},
+      machine_number = #{machineNumber,jdbcType=VARCHAR},
+      create_date = #{createDate,jdbcType=DATE},
+      state = #{state,jdbcType=CHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <!-- 修改批次号 -->
+  <update id="updateSampleBatch" parameterType="com.hbsi.sample.entity.SampleRecords">
+    update sample_record
+    set sample_batch = #{sampleBatch,jdbcType=INTEGER}
+    where id in
+    <foreach collection="sampleRecordIdList" item="id"
+            separator="," open="(" close=")">
+            #{id,jdbcType=INTEGER}
+    </foreach>
+  </update>
+</mapper>

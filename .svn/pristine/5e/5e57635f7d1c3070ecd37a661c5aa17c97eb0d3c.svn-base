@@ -1,0 +1,124 @@
+package com.hbsi.entrustment.service.impl;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.hbsi.dao.EntrustmentHistoryMapper;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.EntrustmentHistory;
+import com.hbsi.entrustment.service.SaveEntrustmenService;
+import com.hbsi.entrustmenthistory.service.EntrustmentHistoryService;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.PageResult;
+import com.hbsi.response.Response;
+@Service
+public class SaveEntrustmentServiceImpl implements SaveEntrustmenService {
+
+	Logger logger = LoggerFactory.getLogger(this.getClass());
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;
+	@Autowired
+	private EntrustmentHistoryMapper entrustmentHistoryMapper;
+	@Autowired
+	private EntrustmentHistoryService entrustmenthistoryService;
+	/**
+	 * 生成新的批次号返回给前端
+	 */
+	@Override
+	public Response<Integer> saveNewBatch() {
+		Integer sampleBatch;
+		Integer count = entrustmentMapper.selectCount();
+		//小于999说明不用往历史委托单号表中添加数据
+		if(count < 999) {
+			Entrustment entrust = entrustmentMapper.selectLatestEntrust();
+			/**
+			 * 生成新的批次号：旧批次号如果小于999，加一
+			 * 就的批次号等于999.新批次号为1
+			 */
+			if(entrust.getSampleBatch() != 999) {
+				sampleBatch = entrust.getSampleBatch() + 1;
+			}else {
+				sampleBatch = 1;
+			}
+		}else {
+			Entrustment entrust;
+			try {
+				entrust = entrustmentMapper.selectOldestEntrust();
+			} catch (Exception e) {
+				throw new BaseException(ExceptionEnum.ENTRUSTMENT_SELECT_FAILED);
+			}
+			//将这条数据放入历史委托单号表中
+			EntrustmentHistory temp = new EntrustmentHistory();
+			temp.setSampleBatch(entrust.getSampleBatch());
+			temp.setEntrustmentNumber(entrust.getEntrustmentNumber());
+			temp.setCreateTime(entrust.getCreateTime());
+			temp.setState(entrust.getState());
+			entrustmenthistoryService.saveEntrustmentHistory(temp);
+			//删除该条数据，并返回这条数据的批次号
+			sampleBatch = entrust.getSampleBatch();
+			try {
+				entrustmentMapper.deleteByPrimaryKey(entrust.getId());
+			} catch (Exception e) {
+				logger.error("删除999之前的那条数据失败了，原因是:{}",e);
+				throw new BaseException(ExceptionEnum.ENTRUSTMENT_DELETE_FAILED);
+			}
+		}
+		return new Response<Integer>(sampleBatch);
+	}
+    /**
+     * 保存修改完成后的委托单号
+     */
+	@Override
+	public Response saveEntrustment(Entrustment entrustment) {
+		/**
+		 * 只有两个字段，现在添加上state和创建时间，插入到数据库中去
+		 */
+		Entrustment entrus = entrustmentMapper.selectEntrustByBatchNum(entrustment.getSampleBatch());
+		if(entrus == null) {
+			return new Response<>("00001600","不能重复添加该批次号",null);
+		}
+		entrustment.setCreateTime(new Date());
+		entrustment.setState("000");
+		System.out.println(entrustment);
+		try {
+		    entrustmentMapper.insert(entrustment);
+		} catch (Exception e) {
+			logger.error("插入新的批次号和委托单号，到委托单号表出错了，原因是:{}",e);
+		throw new BaseException(ExceptionEnum.ENTRUSTMENT_SAVE_FAILED);
+		}
+		return new Response<>("200","ok",null);
+	}
+	/**
+	 * 得到委托单号表中的所有的999条数据，还得倒序，变态难度呀
+	 */
+	@Override
+	public Response<Object> selectEntrustmentList(Integer offset,Integer limit) {
+		/**
+		 * 该方法为变态难度级别，用了一行代码才实现
+		 */
+		List<Entrustment> listByDesc = new ArrayList<>();
+		//分页信息
+		try {
+			PageHelper.startPage(offset, limit);// 对下一行语句进行分页
+			listByDesc = entrustmentMapper.selectAllByDesc();
+		} catch (Exception e) {
+			logger.error("查询999条委托单号信息失败了，原因是:{}",e);
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_SELECT_FAILED);
+		}
+		PageInfo<Entrustment> pageInfo = new PageInfo<Entrustment>(listByDesc);
+		PageResult result = new PageResult(pageInfo.getPageSize(), pageInfo.getPageNum(), pageInfo.getTotal(),
+				pageInfo.getList());
+		return new Response<>(result);
+	}
+
+}

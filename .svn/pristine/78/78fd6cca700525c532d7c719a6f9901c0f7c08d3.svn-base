@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hbsi.dao.EntrustmentDataMapper">
+  <resultMap id="BaseResultMap" type="com.hbsi.domain.EntrustmentData">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="entrustment_number" jdbcType="VARCHAR" property="entrustmentNumber" />
+    <result column="date" jdbcType="DATE" property="date" />
+    <result column="product_name" jdbcType="VARCHAR" property="productName" />
+    <result column="reviewer" jdbcType="VARCHAR" property="reviewer" />
+    <result column="steel_number" jdbcType="INTEGER" property="steelNumber" />
+    <result column="test_clerk_number" jdbcType="VARCHAR" property="testClerkNumber" />
+    <result column="test_machine" jdbcType="VARCHAR" property="testMachine" />
+    <result column="standard" jdbcType="VARCHAR" property="standard" />
+    <result column="state" jdbcType="CHAR" property="state" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, entrustment_number, date, product_name, reviewer, steel_number, test_clerk_number, 
+    test_machine, standard, state
+  </sql>
+  <!-- 查询委托单报告是否已存在 -->
+  <select id="selectEntrustmentData" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from entrustment_data
+    where entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR} and state='000'
+  </select>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from entrustment_data
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from entrustment_data
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <!-- 新建委托单报告 -->
+  <insert id="insert" parameterType="com.hbsi.domain.EntrustmentData">
+    insert into entrustment_data (entrustment_number, date)
+    values (#{entrustmentNumber,jdbcType=VARCHAR}, #{date,jdbcType=DATE})
+  </insert>
+  <insert id="insertSelective" parameterType="com.hbsi.domain.EntrustmentData">
+    insert into entrustment_data
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="entrustmentNumber != null">
+        entrustment_number,
+      </if>
+      <if test="date != null">
+        date,
+      </if>
+      <if test="productName != null">
+        product_name,
+      </if>
+      <if test="reviewer != null">
+        reviewer,
+      </if>
+      <if test="steelNumber != null">
+        steel_number,
+      </if>
+      <if test="testClerkNumber != null">
+        test_clerk_number,
+      </if>
+      <if test="testMachine != null">
+        test_machine,
+      </if>
+      <if test="standard != null">
+        standard,
+      </if>
+      <if test="state != null">
+        state,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="entrustmentNumber != null">
+        #{entrustmentNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="date != null">
+        #{date,jdbcType=DATE},
+      </if>
+      <if test="productName != null">
+        #{productName,jdbcType=VARCHAR},
+      </if>
+      <if test="reviewer != null">
+        #{reviewer,jdbcType=VARCHAR},
+      </if>
+      <if test="steelNumber != null">
+        #{steelNumber,jdbcType=INTEGER},
+      </if>
+      <if test="testClerkNumber != null">
+        #{testClerkNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="testMachine != null">
+        #{testMachine,jdbcType=VARCHAR},
+      </if>
+      <if test="standard != null">
+        #{standard,jdbcType=VARCHAR},
+      </if>
+      <if test="state != null">
+        #{state,jdbcType=CHAR},
+      </if>
+    </trim>
+  </insert>
+  <!-- 添加委托单数据，实则根据委托单号补全数据 -->
+  <update id="updateByPrimaryKeySelective" parameterType="com.hbsi.domain.EntrustmentData">
+    update entrustment_data
+    <set>
+      <if test="productName != null">
+        product_name = #{productName,jdbcType=VARCHAR},
+      </if>
+      <if test="reviewer != null">
+        reviewer = #{reviewer,jdbcType=VARCHAR},
+      </if>
+      <if test="steelNumber != null">
+        steel_number = #{steelNumber,jdbcType=INTEGER},
+      </if>
+      <if test="testClerkNumber != null">
+        test_clerk_number = #{testClerkNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="testMachine != null">
+        test_machine = #{testMachine,jdbcType=VARCHAR},
+      </if>
+      <if test="standard != null">
+        standard = #{standard,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.hbsi.domain.EntrustmentData">
+    update entrustment_data
+    set entrustment_number = #{entrustmentNumber,jdbcType=VARCHAR},
+      date = #{date,jdbcType=DATE},
+      product_name = #{productName,jdbcType=VARCHAR},
+      reviewer = #{reviewer,jdbcType=VARCHAR},
+      steel_number = #{steelNumber,jdbcType=INTEGER},
+      test_clerk_number = #{testClerkNumber,jdbcType=VARCHAR},
+      test_machine = #{testMachine,jdbcType=VARCHAR},
+      standard = #{standard,jdbcType=VARCHAR},
+      state = #{state,jdbcType=CHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

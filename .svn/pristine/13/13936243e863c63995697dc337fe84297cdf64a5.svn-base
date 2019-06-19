@@ -1,0 +1,57 @@
+package com.hbsi.wire;
+
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
+
+import com.hbsi.JlCheckApplication;
+import com.hbsi.common.utils.BaseDataImportUtil;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.wire.service.WireRopeService;
+import com.hbsi.wire.service.WireRopeServiceGB8918;
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes=JlCheckApplication.class)
+@WebAppConfiguration
+public class GB89192006Test {
+
+	@Autowired
+	private WireRopeServiceGB8918 wireRopeService;
+	@Autowired
+	 private WireRopeService wireRopeServicFirst;
+	static BaseDataImportUtil baseDataImpUtil;
+	
+	@Test
+	public void testWireRope() throws InvalidFormatException, IOException {
+		wireRopeServicFirst.selectOrCreateWR("WG1811076");
+		String path="/Users/admin/Desktop/gb89192006.xlsx";
+		List<WireData> list = baseDataImpUtil.importTestWireData(path);
+		WireRope wireRope=new WireRope();
+		wireRope.setWireDataList(list);
+		wireRope.setEnstrustmentNumber("WG1811076");
+		wireRope.setJudgeStandard("GB8918-2006");
+		wireRope.setSpecification("14");
+		wireRope.setStructure("4V×39S＋5FC");
+		wireRope.setStrengthLevel("1960");
+		wireRope.setSurfaceState("光面");
+		wireRope.setTrialClass("1*15/15,0.75*24/24");
+		wireRope.setTwistingMethod("左交互捻 SZ");
+		wireRopeService.judgeWire(wireRope);
+//		for(int i=0;i<wireRope.getWireDataList().size();i++) {
+//			WireData w=wireRope.getWireDataList().get(i);
+//			Double tensile = w.getBreakTensile();
+//			System.out.println(tensile);
+//		}
+		System.out.println(wireRope.getMeasureBreakTensile());
+		System.out.println(wireRope.getMinBreakTensile());
+		System.out.println(wireRope.getEvaluation());
+	}
+}

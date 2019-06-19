@@ -1,0 +1,849 @@
+package com.hbsi.wire.service.impl;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.annotation.Resource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.dao.DiameterDeviationMapper;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.ReverseBendingMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.TensileStrengthMapper;
+import com.hbsi.dao.WireAttributesGbt201182017Mapper;
+import com.hbsi.dao.WireDataMapper;
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.domain.DiameterDeviation;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.domain.TensileStrength;
+import com.hbsi.domain.WireAttributesGbt201182017;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.entity.WireRopeData;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.wire.service.WireRopeService;
+
+
+@Service
+public class WireRopeServiceImpl implements WireRopeService{
+	private Logger logger=LoggerFactory.getLogger(WireRopeService.class);
+	@Autowired
+	private WireRopeMapper wireRopeMapper;
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;
+	@Autowired
+	private WireDataMapper wireDataMapper;
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;
+	//GBT20118-2017 属性
+	@Autowired
+	private WireAttributesGbt201182017Mapper wireAttrMapperGBT201182017;
+	//直径允许误差
+	@Autowired
+	private DiameterDeviationMapper diameterDeviationMapper;
+
+	 /*抗拉强度允许值*/
+	@Autowired
+	private TensileStrengthMapper tensileStrengthMapper;
+	/*扭转和弯曲次数*/
+	@Autowired
+	private ReverseBendingMapper reverseBendingMapper;
+	/**
+	 * 查询和创建钢丝绳报告
+	 */
+	@Override
+	public Response<WireRope> selectOrCreateWR(String enstrustmentNumber) {
+		WireRope wireRope=wireRopeMapper.selectByEnsNum(enstrustmentNumber);
+		if(wireRope==null) {
+			Entrustment e=new Entrustment();
+			e.setEntrustmentNumber(enstrustmentNumber);
+			Entrustment en=entrustmentMapper.selectEntrustmentNumber(e);
+			SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd");
+			SimpleDateFormat sd=new SimpleDateFormat("yyyy-MM");
+			wireRope=new WireRope();
+			wireRope.setEnstrustmentNumber(enstrustmentNumber);
+			wireRope.setReportDate(sdf.format(new Date()));
+			wireRope.setReportNumber("L-"+sd.format(new Date())+"-"+en.getSampleBatch());
+			wireRope.setStockSplitMethod("部分试验");
+			wireRope.setRecorderNumber("DG"+sd.format(new Date())+"-"+en.getSampleBatch());
+			try {
+				int i=wireRopeMapper.insertSelective(wireRope);
+			} catch (Exception ex) {
+				logger.error("添加钢丝绳报告出现错误:{}",ex.getLocalizedMessage());
+				throw new BaseException(ExceptionEnum.WIREROPE_SAVE_ERROR);
+			}
+		}
+		return new Response<WireRope>(wireRope);
+	}
+	/**
+	 * 调入数据
+	 * 1、先查看钢丝绳数据中有没有数据，如果没有，将钢丝数据取出来，对应添加到钢丝绳数据中返回
+	 */
+	@Override
+	public Response<List<WireData>> selectWireData(WireRope wireRope) {
+		String entrustmentNumber=wireRope.getEnstrustmentNumber();
+		WireRope wr=wireRopeMapper.selectByEnsNum(entrustmentNumber);
+		if(wr!=null) {
+			exchange(wr, wireRope);
+		}else {
+			wr=wireRope;
+		}
+		List<WireData> wireList=wireDataMapper.selectByEnNum(entrustmentNumber);
+		if(wireList==null||wireList.size()==0) {
+			wireList=new ArrayList<WireData>();
+			List<SteelWireData> slist=steelWireDataMapper.selectByEnNum(entrustmentNumber);
+			if(slist==null||slist.size()==0) {
+				logger.error("没有数据");
+			}else {
+				String cl=wr.getTrialClass();
+				String[] str=cl.split(",");
+				List<String[]> l=new ArrayList<>();
+				for(int i=0;i<str.length;i++) {
+					String s=str[i];
+					String[] ss=s.split("*");
+					l.add(ss);
+				}
+				int n=1;
+				int m=0;
+				for(SteelWireData s:slist) {
+					String[] nd=l.get(m);
+					WireData w=new WireData();
+					w.setnDiamete(Double.parseDouble(nd[0]));
+					w.setDiamete(s.getfDiamete());
+					w.setBreakTensile(s.getBreakTensile());
+					w.setTensileStrength(s.getTensileStrength());
+					w.setKnotTension(s.getKnotTension());
+					w.setKnotRate(s.getKnotRate());
+					w.setTurnTimes(s.getTorsionTimes());
+					w.setWindingTimes(s.getBendingTimes());
+					w.setEntrustmentNumber(entrustmentNumber);
+					wireList.add(w);
+					Integer num=Integer.parseInt(nd[1]);
+					if(n==num) {
+						n=1;
+						m++;
+					}else {
+						n++;
+					}
+				}
+				try {
+					int j=wireRopeMapper.updateByPrimaryKey(wr);
+					int i=wireDataMapper.insertWireDataBatch(wireList);
+				} catch (Exception e) {
+					logger.error("添加钢丝绳数据失败,{}",e.getLocalizedMessage());
+					throw new BaseException(ExceptionEnum.WIREROPE_DATA_SAVE_ERROR);
+				}
+			}
+		}
+		return new Response<List<WireData>>(wireList);
+	}
+	/**
+	 * 钢丝绳总和判定  标准 GBT20118-2017
+	 * 先保存数据
+	 * 1.计算最小钢丝破断拉力
+	 * 2.计算实测钢丝拉力总和
+	 * 3、直径判定
+	 * 4、抗拉强度判定
+	 * 5、扭转次数判定
+	 * 6、弯曲次数判定
+	 * 7、
+	 */
+	@Override
+	public Response<Object> judgeWireRopeGbt201182017(WireRope wireRope) {
+		/*数据保存*/
+		if(wireRope==null) {
+			logger.error("没有数据");
+			
+		}else {
+			
+			/*计算钢丝破断拉力*/
+			double wireBreak=calWireBreakTensile(wireRope);
+			/*计算钢丝绳最小破断拉力总和*/
+			//查询捻制损失系数
+			WireAttributesGbt201182017 att=wireAttrMapperGBT201182017.selectTanningByStructure(wireRope.getStructure());
+			double wireBreakAll=wireBreak*att.getTanningLossFactor();//钢丝绳最小破断拉力总和
+			wireRope.setMinBreakTensile(wireBreakAll);
+			wireRope.setMeasureBreakTensile(wireBreak);
+			/*修改钢丝绳数据*/
+			saveWireData(wireRope);
+			Map<Double, int[]> resultMap=judgeWireRope(wireRope);
+			//直径允许有不超过3%的钢丝超过规定
+			int min_strength=0;
+			int min_turn=0; 
+			Integer num=wireRope.getWireDataList().size();//试验钢丝的总根数
+			//根据钢丝绳结构查询钢丝绳允许低值钢丝根数
+			if(att.getPartialIntensityLow()==null||att.getPartialReverseLow()==null) {
+				if(wireRope.getNonTrialClass()!=null&&wireRope.getNonTrialClass().length()!=0) {
+					//部分试验
+					min_strength=(int)(num*0.06);
+					min_turn=(int)(num*0.05);
+				}else {
+					//100%试验
+					min_strength=(int)(num*0.025);
+					min_turn=(int)(num*0.025);
+				}
+			}
+			
+			StringBuilder sb=new StringBuilder();
+			int[] all=resultMap.get(0d);
+			if(all!=null&&all.length!=0) {
+				if(all[0]>0) {
+					sb.append("不合格");
+				}else if(all[2]>0) {
+					sb.append("不合格");
+				}else if(all[3]>0) {
+					sb.append("不合格");
+				}else if(all[5]>0) {
+					sb.append("不合格");
+				}else if(all[7]>0) {
+					sb.append("不合格");
+				}else if(all[1]>num*0.03) {
+					sb.append("不合格");
+				}else if(all[4]>min_strength) {
+					sb.append("不合格");
+				}else if(all[6]>min_turn||all[8]>min_turn) {
+					sb.append("不合格");
+				} else if(all[14]>all[13]*0.05){//小于0.5的钢丝要至少95%符合规定
+					sb.append("不合格");
+				}else {
+					sb.append("合格");
+				}
+			}
+			sb.append(",");
+			Iterator<Double> it=resultMap.keySet().iterator();
+			/**
+			 *  int diamaten=0;//直径不合格数量 int[0]
+				int diamatem=0;//直径有偏差但在允许范围内的直径数量 int[1]   直径允许有不超过3%的测量钢丝超出规定
+				int breakn=0;//破断拉力不合格数量  int[2]
+				int strengthn=0;//抗拉强度不合格 int[3]
+				int strengthm=0;//抗拉强度低值 int[4]
+				int turnn=0;//扭转次数不合格数量 int[5]
+				int turnm=0;//扭转次数低值 int[6]
+				int windingn=0;//弯曲次数不合格数量 int[7]
+				int windingm=0;//弯曲次数低值 int[8]
+				符合，在"综合判定"栏显示"合格"
+				不符合，"综合判定"栏显示"不合格"，并列出不符合项不合格情况说明
+			 */
+			while(it.hasNext()) {
+				double ndiamate=it.next();
+				if(ndiamate!=0) {
+					int[] re=resultMap.get(ndiamate);
+					int i=0;
+					for(;i<re.length;i++) {
+						if(re[i]!=0) {//有低值或者不合格则跳出本层循环
+							break;
+						}
+					}
+					if(i>=re.length) {
+						continue;//若该公称直径下没有不合格或者低值则跳出本次循环
+					}else {
+						//若该公称直径下有低值或者不合格则显示
+						sb.append("Φ").append(ndiamate).append("钢丝[");
+						if(re[0]>0) {
+							sb.append("直径有").append(re[0]).append("根不合格 ");
+						}
+						if(re[1]>0) {
+							sb.append("直径有").append(re[1]).append("根有偏差但在允许范围内 ");
+						}
+						if(re[2]>0) {
+							sb.append("破断拉力有").append(re[2]).append("根不合格 ");
+						}
+						if(re[3]>0) {
+							sb.append("抗拉强度有").append(re[3]).append("根不合格 ");
+						}
+						if(re[4]>0) {
+							sb.append("抗拉强度有").append(re[4]).append("根低值 ");
+						}
+						if(re[5]>0) {
+							sb.append("扭转有").append(re[5]).append("根不合格 ");
+						}
+						if(re[6]>0) {
+							sb.append("扭转有").append(re[6]).append("根低值 ");
+						}
+						if(re[7]>0) {
+							sb.append("反复弯曲有").append(re[7]).append("根不合格 ");
+						}
+						if(re[8]>0) {
+							sb.append("反复弯曲有").append(re[8]).append("根低值 ");
+						}
+						if(re[13]>0) {
+							sb.append("打结拉力有").append(re[13]).append("跟不合格");
+						}
+//						if(re[9]>0) {
+//							sb.append("有").append(re[9]).append("根抗拉强度和扭转均低值 ");
+//						}
+//						if(re[10]>0) {
+//							sb.append("有").append(re[10]).append("根抗拉强度和反复弯曲均低值 ");
+//						}
+//						if(re[11]>0) {
+//							sb.append("有").append(re[11]).append("根扭转和反复弯曲均低值 ");
+//						}
+//						if(re[12]>0) {
+//							sb.append("有").append(re[12]).append("根抗拉强度、扭转和反复弯曲均低值 ");
+//						}
+						
+					}
+				}
+				sb.append("]  ");
+			}
+		}
+		return null;
+	}
+	private Map<Double, int[]> judgeWireRope(WireRope wireRope){
+		WireAttributesGbt201182017 att=wireAttrMapperGBT201182017.selectTanningByStructure(wireRope.getStructure());
+		//钢丝绳的股类型
+		String shape=att.getShape();
+		List<WireData> dataList=wireRope.getWireDataList();
+		
+		WireRopeData wireRopeData=new WireRopeData();
+		wireRopeData.setStandardNum(wireRope.getTestStandard());
+		/**
+		 * 判断钢丝绳表面状态
+		 */
+		String surface1=wireRope.getSurfaceState();
+		String surface="";
+		if(surface1.contains("光面")) {
+			surface="U";
+		}else if(surface1.contains("A类")||surface1.contains("A级")){
+			surface="A";
+		}else if(surface1.contains("B类")||surface1.contains("B级")){
+			surface="B";
+		}else if(surface1.contains("AB类")||surface1.contains("AB级")){
+			surface="AB";
+		}
+		String diaSurface=surface;//用于直径偏差
+		if(surface.equals("U")||surface.equals("B")||surface.equals("AB")) {
+			diaSurface="U,B,AB";
+		}
+		if(surface1.contains("光面")&&surface1.contains("B级")) {
+			surface="U,B";//用于扭转弯曲判定
+		}
+		wireRopeData.setSurface(diaSurface);
+		Integer strengthLevel=Integer.parseInt(wireRope.getStrengthLevel());//抗拉强度
+		/*******************/
+		/**
+		 * 计算标准抗拉强度允许值
+		 */
+		//根据标准号和抗拉强度级别查询最低抗拉强度值
+		TensileStrength t=new TensileStrength();
+		t.setStandardNum(wireRope.getTestStandard());
+		t.setRatedStrength(strengthLevel);
+		List<TensileStrength> tensileList=tensileStrengthMapper.selectByStrengthLevel(t);
+		//甲
+		Integer first=0;
+		//乙
+		Integer second=0;
+		//丙
+		Integer third=0;
+		/*如果公称抗拉强度不在规定数据中，则按照P11 表9中注进行计算，甲栏为该公称抗拉强度降50，乙栏为降5%，丙栏为降10%  修约成整数*/
+		if(tensileList==null||tensileList.size()==0) {
+			first=strengthLevel-50;
+			second=(int)(strengthLevel*(1-0.05));//需要进行修约成整数
+			third=(int)(strengthLevel*(1-0.1));
+		}else {
+			for(TensileStrength t1:tensileList) {
+				if("甲".equals(t1.getType())) {
+					first=t1.getStrengthValue();
+				}else if("乙".equals(t1.getType())) {
+					second=t1.getStrengthValue();
+				}else if("丙".equals(t1.getType())) {
+					third=t1.getStrengthValue();
+				}
+			}
+		}
+		/**
+		 * 按照试验钢丝数据公称直径组合数据
+		 */
+		Map<Double, List<WireData>> dataMap=new HashMap<>();
+		List<WireData> l=null;
+		for(WireData wireData:dataList) {
+			if(!dataMap.containsKey(wireData.getnDiamete())) {
+				l=new ArrayList<WireData>();
+				l.add(wireData);
+			}else {
+				l=dataMap.get(wireData.getnDiamete());
+				l.add(wireData);
+			}
+			dataMap.put(wireData.getnDiamete(), l);
+		}
+		/**
+		 * 对dataMap数据进行操作，按照不同的直径进行判定
+		 */
+		//定义存放钢丝不合格根数和低值根数的map，以公称直径作为key
+		/**
+		 *  int diamaten=0;//直径不合格数量 int[0]
+			int diamatem=0;//直径有偏差但在允许范围内的直径数量 int[1]
+			int breakn=0;//破断拉力不合格数量  int[2]
+			int strengthn=0;//抗拉强度不合格 int[3]
+			int strengthm=0;//抗拉强度低值 int[4]
+			int turnn=0;//扭转次数不合格数量 int[5]
+			int turnm=0;//扭转次数低值 int[6]
+			int windingn=0;//弯曲次数不合格数量 int[7]
+			int windingm=0;//弯曲次数低值 int[8]
+			int[9] 抗拉强度 扭转次数均低值
+			int[10] 抗拉强度 弯曲次数均低值
+			int[11] 扭转次数和弯曲次数均低值
+			int[12] 抗拉强度 扭转次数 弯曲次数均
+			int[13] 小于0.5的钢丝的打结拉力不符合要求的根数
+		 */
+		Map<Double, int[]> resultMap=new HashMap<Double,int[]>();
+		Set<Double> diaSet=dataMap.keySet();
+		Iterator<Double> it=diaSet.iterator();
+		//公称直径
+		double ndiamate=0;
+		//钢丝最小破断拉力系数
+		double minBreakForce=att.getMinimumBreakingForce();
+		double standardBreak=0;//钢丝绳标准破断拉力值
+		DiameterDeviation dd=null;//钢丝直径允许最大偏差  根据公称直径所在范围进行查询 
+		
+		//查询扭转弯曲次数的最低值条件
+		ReverseBending rb=new ReverseBending();
+		rb.setStandardNum(wireRope.getTestStandard());
+		rb.setRatedStrength(strengthLevel+"");
+		rb.setSurfaceState(surface);
+		int[] all=new int[15];//所有的钢丝判定结果，all[13] 代表小于0.5钢丝根数 all[14]代表小于0.5钢丝不符合要求的数目
+		while(it.hasNext()) {
+			ndiamate=it.next();//一种钢丝公称直径
+			wireRopeData.setNdiamete(ndiamate); 
+			dd=diameterDeviationMapper.selectDiaByType(wireRopeData);//钢丝直径允许的最大偏差
+			   //计算公称直径下钢丝的标准破断拉力值
+		   double breakValue=minBreakForce*Math.pow(ndiamate, 2)*strengthLevel/1000.0;
+			 standardBreak=getValue(breakValue);
+			 //查询公称直径对应的扭转弯曲次数
+			 rb.setfDiamete(ndiamate);
+			List<ReverseBending> rlist=reverseBendingMapper.selectRBDataByCon(rb);
+			int[] d=new int[2];
+			for(ReverseBending r:rlist) {
+				if("扭转".equals(r.getType())) {
+					d[0]=r.getValueRob();
+				}else if("弯曲".equals(r.getType())) {
+					d[1]=r.getValueRob();
+				}
+			}
+			 
+			List<WireData> dlist=dataMap.get(ndiamate);//公称直径的钢丝数据
+			int[] re=new int[14];//该公称直径的判定结果  re[13]  公称直径小于0.5的打结拉力不符合的根数
+			boolean f1=false;//抗拉强度低值
+			boolean f2=false;//扭转次数低值
+			boolean f3=false;//弯曲次数低值
+			
+			for(WireData wireData:dlist) {
+				/**
+				 * 直径判定
+				 */
+				double diamete=wireData.getDiamete();//钢丝直径
+				if(Math.abs(diamete-ndiamate)>dd.getValue()*1.5) {
+					re[0]++;//直径不合格数量加1
+					all[0]++;
+				}else if(Math.abs(diamete-ndiamate)>dd.getValue()) {
+					re[1]++;//直径允许最大偏差+1
+					all[1]++;
+				}
+				/**
+				 * 拉力判断
+				 */
+				if(wireData.getBreakTensile()<standardBreak) {
+					re[2]++;
+					all[2]++;
+				}
+				
+				/**
+				 * 抗拉强度判断
+				 * 先在抗拉强度表中进行查询，按照11页进行判定。若查询为空，按照表9 注，进行计算允许最低抗拉强度低值
+				 */
+				int minTurnTimes=d[0];//扭转次数允许最低值
+				int minWindTimes=d[1];//弯曲次数允许最低值
+				if("圆形股".equals(shape)) {
+					//抗拉强度判定
+					if(wireData.getTensileStrength()<third) {
+						re[3]++;//不合格
+						all[3]++;
+					}else if(wireData.getTensileStrength()<first) {
+						re[4]++;//低值
+						all[4]++;
+						f1=true;
+					}
+					//钢丝直径小于0.5 打结拉力替代扭转个弯曲
+					if(ndiamate<0.5) {
+						all[13]++;
+						//打结拉力应不小于钢丝公称抗拉强度50%的拉力
+						double knotTension=wireData.getKnotTension();//试验打结拉力
+						double k1=strengthLevel*Math.PI*Math.pow((wireData.getDiamete()/2.0), 2)*0.5;
+						if(knotTension<k1) {
+							re[13]++;
+							all[14]++;
+						}
+						continue;
+					}
+					//扭转次数判定
+					//根据钢丝的公称直径获取扭转次数
+					
+					if(wireData.getTurnTimes()<minTurnTimes*(1-0.2)) {
+						re[5]++;
+						all[5]++;
+					}else if(wireData.getTurnTimes()<minTurnTimes) {
+						re[6]++;
+						all[6]++;
+						f2=true;
+					}
+					//弯曲次数判定
+					if(wireData.getWindingTimes()<minWindTimes) {
+						re[7]++;
+						all[7]++;
+						f3=true;
+					}
+					
+				}else if("异形股".equals(shape)) {
+					if(wireData.getTensileStrength()<third) {
+						re[3]++;
+						all[3]++;
+					}else if(wireData.getTensileStrength()<second) {
+						re[4]++;
+						all[4]++;
+						f1=true;
+					}
+					
+					//钢丝直径小于0.5 打结拉力替代扭转个弯曲
+					if(ndiamate<0.5) {
+						all[13]++;
+						//打结拉力应不小于钢丝公称抗拉强度50%的拉力
+						double knotTension=wireData.getKnotTension();//试验打结拉力
+						double k1=strengthLevel*Math.PI*Math.pow((wireData.getDiamete()/2.0), 2)*0.5;
+						if(knotTension<k1) {
+							re[13]++;
+							all[14]++;
+						}
+						continue;
+					}
+					
+					/*扭转次数判定*/
+					if(wireData.getTurnTimes()<minTurnTimes*(1-0.3)) {
+						re[5]++;
+						all[5]++;
+					}else if(wireData.getTurnTimes()<minTurnTimes) {
+						re[6]++;
+						all[6]++;
+						f2=true;
+					}
+					//弯曲次数判定
+					if(wireData.getWindingTimes()<minWindTimes*(1-0.2)) {
+						re[7]++;
+						all[7]++;
+					}else if(wireData.getWindingTimes()<minWindTimes) {
+						re[8]++;
+						all[8]++;
+						f3=true;
+					}
+				}
+				if(f1&f2&!f3) {
+					re[9]++;
+					all[9]++;
+				}
+				if(f1&f3&!f2) {
+					re[10]++;
+					all[10]++;
+				}
+				if(f2&f3&!f1) {
+					re[11]++;
+					all[11]++;
+				}
+				if(f1&f2&f3) {
+					re[12]++;
+					all[12]++;
+				}
+			}
+			resultMap.put(ndiamate, re);
+		}
+		resultMap.put(0d, all);
+		return resultMap;
+	}
+	/**
+	 * 对破断拉力进行修约
+	 * @param n
+	 * @return
+	 */
+	private  double getValue(double n) {
+		if(n<100) {
+			/**
+			 * 保留一位小数
+			 */
+			double result=0;
+			int x=(int)(n*100);
+			int l1=x%10;//第二位小数
+			if(l1<5) {
+				result=Math.round(n*10)/10.0;
+			}else if(l1>5) {
+				result=Math.round(n*10)/10.0;
+			}else if(l1==5) {//看第三位小数
+				String s=(n+"00").substring((n+"00").indexOf('.')+3);
+				Integer s0=Integer.parseInt(s);
+				if(s0!=0) {//不是0
+					int a=Integer.parseInt(s.charAt(0)+"");
+					if(a%2==0) {
+						result=Math.round((Math.round(n*10)/10.0-0.1)*10)/10.0;
+					}else {
+						result=Math.round(n*10)/10.0;
+					}
+				}else {
+					int a=((int)n)%10;
+					if(a%2==0) {
+						result=Math.round((Math.round(n*10)/10.0-0.1)*10)/10.0;
+					}else {
+						result=Math.round(n*10)/10.0;
+					}
+				}
+			}
+			return result;
+		}else if(n<1000) {
+			/**
+			 * 小数舍弃
+			 */
+			Integer x=(int)(n*10);
+			int l1=x%10;
+			int result=0;
+			if(l1<5&&l1>0) {
+				 result=(int)n;
+			}else if(l1>5) {
+				 result=(int)n+1;
+			}else if(l1==5) {
+				//判断后一位小数，如果不是都是0，单数进1，双数舍去；若都是0，则看个位数，单数进1，偶数舍去
+				String s=(n+"0").substring((n+"0").indexOf('.')+2);
+				Integer s0=Integer.parseInt(s);
+				if(s0!=0) {//如果不是0，则看第二位小数
+					int a=Integer.parseInt(s.charAt(0)+"") ;
+					if(a%2==0) {
+						result=(int)n;
+					}else {
+						result=(int)n+1;
+					}
+				}else {//如果是0，则看舍弃的前一位，即个位数
+					int y=(int)n;
+					int l2=y%10;
+					if(l2%2==0) {
+						result=(int)n;
+					}else {
+						result=(int)n+1;
+					}
+				}
+			}
+			return result;
+		}else {
+			/**
+			 * 个位数修约成0
+			 */
+			int x=(int)n;
+			int l1=x%10;
+			int result=0;
+			if(l1<5) {
+				result=x-l1;
+			}else if(l1>5){
+				result=x-l1+10;
+			}else if(l1==5) {
+				String s=(n+"0").substring((n+"0").indexOf('.')+1);
+				Integer s0=Integer.parseInt(s);
+				if(s0!=0) {//如果不是0，则看舍弃的后一位，即第一位小数
+					int a=Integer.parseInt(s.charAt(0)+"") ;
+					if(a%2==0) {
+						result=x-l1;
+					}else {
+						result=x-l1+10;
+					}
+				}else {//如果是0，则看舍弃的前一位，即十位数
+					int a=(x%100)/10;//十位数
+					if(a%2==0) {
+						result=x-l1;
+					}else {
+						result=x-l1+10;
+					}
+				}
+			}
+			return result;
+		}
+	}
+	
+	
+	
+	/**
+	 * 计算钢丝的最小破断拉力
+	 * @param wireRope
+	 * @return
+	 * 试验钢丝的拉力+不试验钢丝的计算拉力
+	 * 试验钢丝的拉力为一股中拉力相加，*股数
+	 * 不试验钢丝的计算拉力=绳级*面积
+	 */
+	private double calWireBreakTensile(WireRope wireRope) {
+		/*试验钢丝的拉力*/
+		String trialClass=wireRope.getTrialClass();
+		String[] s=trialClass.split(",");
+		List<double[]> list=new ArrayList<>();
+		//获取试验钢丝的公称直径、根数、股数
+		for(int i=0;i<s.length;i++) {
+			String s1=s[i];
+			double[] d=new double[4];
+			d[0]=Double.parseDouble(s1.substring(0, s1.indexOf("*")));
+			d[1]=Double.parseDouble(s1.substring(s1.indexOf("*")+1,s1.indexOf("/")));
+			d[2]=Double.parseDouble(s1.substring(s1.indexOf("/")+1));
+			d[2]=d[2]/d[1];
+			list.add(d);
+		}
+		//计算试验钢丝的拉力
+		List<WireData> dataList=wireRope.getWireDataList();
+		for(int i=0;i<list.size();i++) {
+			double[] d=list.get(i);
+			double f=0;
+			for(WireData data:dataList) {
+				if(data.getnDiamete()==d[0]) {
+					f+=data.getBreakTensile();
+				}
+			}
+			d[3]=f;
+			list.add(i, d);
+		}
+		double trialF=0;//试验钢丝拉力总和
+		for(double[] d:list) {
+			trialF+=d[2]*d[3];
+		}
+		//计算不试验钢丝拉力总和
+		String nonTrial=wireRope.getNonTrialClass();
+		double nonTrialF=0;//不试验钢丝拉力总和
+		String[] nons=nonTrial.split(",");
+		for(String ns:nons) {
+			String[] nss=ns.split("*");
+			double diamate=Double.parseDouble(nss[0]);
+			int n=Integer.parseInt(nss[1]);
+			nonTrialF+=Math.PI*Math.pow(diamate/2, 2)*(Integer.parseInt(wireRope.getStrengthLevel()))*n;
+		}
+ 		return trialF+nonTrialF;
+	}
+	/**
+	 * 修改钢丝绳数据
+	 * @param wireRope
+	 */
+	private void saveWireData(WireRope wireRope) {
+		WireRope w=wireRopeMapper.selectByEnsNum(wireRope.getEnstrustmentNumber());
+		exchange(w, wireRope);
+		List<WireData> dataList=wireDataMapper.selectByEnNum(wireRope.getEnstrustmentNumber());
+		List<WireData> list=wireRope.getWireDataList();
+		for(WireData d:dataList) {
+			for(WireData l:list) {
+				if(d.getId()==l.getId()) {
+					wireDataChange(d, l);
+					dataList.add(d);
+				}
+			}
+		}
+		try {
+			int i=wireRopeMapper.updateByPrimaryKey(w);
+			int j=wireDataMapper.updateWireDataBatch(dataList);
+		} catch (Exception e) {
+			logger.error("修改钢丝绳数据出现错误:{}",e.getLocalizedMessage());
+		}
+	}
+	
+	private void exchange(WireRope w,WireRope r) {
+		if(r.getProducerNumber()!=null&&!"".equals(r.getProducerNumber())) {
+			w.setProducerNumber(r.getProducerNumber());
+		}
+		if(r.getReportNumber()!=null&&!"".equals(r.getReportNumber())) {
+			w.setReportNumber(r.getReportNumber());
+		}
+		if(r.getReportDate()!=null&&!"".equals(r.getReportDate())) {
+			w.setReportDate(r.getReportDate());
+		}
+		if(r.getSpecification()!=null&&!"".equals(r.getSpecification())) {
+			w.setSpecification(r.getSpecification());
+		}
+		if(r.getStructure()!=null&&!"".equals(r.getStructure())){
+			w.setStructure(r.getStructure());
+		}
+		if(r.getStrengthLevel()!=null&&!"".equals(r.getStrengthLevel())) {
+			w.setStrengthLevel(r.getStrengthLevel());
+		}
+		if(r.getSurfaceState()!=null&&!"".equals(r.getSurfaceState())) {
+			w.setSurfaceState(r.getSurfaceState());
+		}
+		if(r.getTwistingMethod()!=null&&!"".equals(r.getTwistingMethod())) {
+			w.setTwistingMethod(r.getTwistingMethod());
+		}
+		if(r.getMeasureBreakTensile()!=0) {
+			w.setMeasureBreakTensile(r.getMeasureBreakTensile());
+		}
+		if(r.getMinBreakTensile()!=0) {
+			w.setMinBreakTensile(r.getMinBreakTensile());
+		}
+		if(r.getDiamete()!=0) {
+			w.setDiamete(r.getDiamete());
+		}
+		w.setDiameteNonRundness(r.getDiameteNonRundness());
+		if(r.getStockSplitMethod()!=null) {
+			w.setStockSplitMethod(r.getStockSplitMethod());
+		}
+		if(r.getTrialClass()!=null) {
+			w.setTrialClass(r.getTrialClass());
+		}
+		if(r.getNonTrialClass()!=null) {
+			w.setNonTrialClass(r.getNonTrialClass());
+		}
+		w.setCenterDiamete(r.getCenterDiamete());
+		w.setCenterStrength(r.getCenterStrength());
+		if(r.getEvaluation()!=null) {
+			w.setEvaluation(r.getEvaluation());
+		}
+		if(r.getMemo()!=null) {
+			w.setMemo(r.getMemo());
+		}
+		if(r.getTemperature()!=null) {
+			w.setTemperature(r.getTemperature());
+		}
+		if(r.getTestStandard()!=null) {
+			w.setTestStandard(r.getTestStandard());
+		}
+		if(r.getRecorderNumber()!=null) {
+			w.setRecorderNumber(r.getRecorderNumber());
+		}
+		if(r.getRecorderMemo()!=null) {
+			w.setRecorderMemo(r.getRecorderMemo());
+		}
+	}
+	private void wireDataChange(WireData w,WireData d) {
+		if(d.getnDiamete()!=null) {
+			w.setnDiamete(d.getnDiamete());
+		}
+//		if(d.getDiamete()!=null) {
+//			w.setDiamete(d.getDiamete());
+//		}
+//		if(d.getBreakTensile()!=null) {
+//			w.setBreakTensile(d.getBreakTensile());
+//		}
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

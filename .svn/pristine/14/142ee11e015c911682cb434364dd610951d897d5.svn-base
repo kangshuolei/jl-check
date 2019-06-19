@@ -1,0 +1,5 @@
+package com.hbsi.wire.service;
+
+public interface WireRopeServiceAPI9A2011 {
+
+}

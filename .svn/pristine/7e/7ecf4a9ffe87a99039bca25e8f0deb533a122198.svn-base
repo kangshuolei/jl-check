@@ -1,0 +1,147 @@
+package com.hbsi.steel.service.impl;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.dao.SampleRecordMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.steel.service.SteelService;
+import com.hbsi.util.Arith;
+
+/**
+ * 钢丝报告处理
+ * @author lixuyang
+ * @version 1.0，2018-09-29
+ *
+ */
+@Service
+public class SteelServiceImpl implements SteelService{
+	
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+	
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;//钢丝
+	@Autowired
+	private SampleRecordMapper sampleRecordMapper;//试验记录
+
+	/**
+	 * 调入委托单数据（查询机器数据）
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<List<SampleRecord>> selectSteelData(String info) {
+		JSONObject json = JSONObject.parseObject(info);
+		String entrustmentNumber = json.getString("entrustmentNumber");
+		if(entrustmentNumber==null || "".equals(entrustmentNumber)) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00007290", "委托单号不能为空", null);
+		}
+		//根据委托单号查询试验员编号和试验机编号
+		SampleRecord s = new SampleRecord();
+		s.setEntrustmentNumber(entrustmentNumber);
+		List<SampleRecord> list = null;
+		try {
+			list = sampleRecordMapper.selectSampleRecordList(s);
+			logger.info("根据entrustmentNumber:{}查询试验机器信息,结果：{}", s.getEntrustmentNumber(), list);
+		} catch (Exception e) {
+			logger.error("查询机器数据信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.STEEL_SELECT_FAILED);
+		}
+		return new Response<>(list);
+	}
+
+	/**
+	 * 查询钢丝数据
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<List<SteelWireData>> selectSteelWireList(String info) {
+		JSONObject json = JSONObject.parseObject(info);
+		String entrustmentNumber = json.getString("entrustmentNumber");
+		if(entrustmentNumber==null || "".equals(entrustmentNumber)) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00007290", "委托单号不能为空", null);
+		}
+		List<SteelWireData> list = null;
+		try {
+			list = steelWireDataMapper.selectByEnNum(entrustmentNumber);
+			logger.info("根据entrustmentNumber:{}查询试验机器信息,结果：{}", entrustmentNumber, list);
+		} catch (Exception e) {
+			logger.error("查询钢丝数据信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.STEEL_WIRE_SELECT_FAILED);
+		}
+		return new Response<>(list);
+	}
+
+	/**
+	 * 添加钢丝数据
+	 * @param list
+	 * @return
+	 */
+	@Override
+	public Response<Integer> saveSteelWire(List<SteelWireData> list) {
+		if(list.size() <= 0) {
+			logger.info("钢丝数据不能为空");
+			return new Response<>("00007290", "钢丝数据不能为空", null);
+		}
+		Integer result = null;
+		try {
+			result = steelWireDataMapper.updateByPrimaryKeySelective(list);
+			logger.info("根据list:{}添加钢丝数据信息,结果：{}", list, result);
+		} catch (Exception e) {
+			logger.error("添加钢丝数据信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.STEEL_WIRE_SAVE_FAILED);
+		}
+		return new Response<>(result);
+	}
+
+	/**
+	 * 修改钢丝数据（判定）
+	 * @param list
+	 * @return
+	 */
+	@Override
+	public Response<Integer> updateSteelWire(List<SteelWireData> list) {
+		if(list.size() <= 0) {
+			logger.info("钢丝数据不能为空");
+			return new Response<>("00007290", "钢丝数据不能为空", null);
+		}
+		List<SteelWireData> swList = new ArrayList<>();
+		for(int i = 0; i < list.size(); i++) {
+			SteelWireData s = new SteelWireData();
+			s.setId(list.get(i).getId());
+			s.setfDiamete(list.get(i).getfDiamete());//成品直径
+			s.setStrengthLevel(list.get(i).getStrengthLevel());//强度级别
+			s.setUse(list.get(i).getUse());//用途
+			s.setBreakTensile(list.get(i).getBreakTensile());//破断拉力
+			//计算抗拉强度 
+			double d = (Arith.div(s.getBreakTensile(), Arith.mul(Math.PI, Arith.mul(s.getfDiamete()/2, s.getfDiamete()/2))))*1000;
+			s.setTensileStrength((int)Math.round(d));//抗拉强度（四舍五入）
+			s.setJudge(s.getStrengthLevel() + s.getUse());//判定（强度级别+用途）
+			swList.add(s);
+		}
+		Integer result = null;
+		try {
+			result = steelWireDataMapper.updateByPrimaryKeySelective(swList);
+			logger.info("根据swList:{}修改钢丝数据信息,结果：{}", swList, result);
+		} catch (Exception e) {
+			logger.error("修改钢丝数据信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.STEEL_WIRE_UPDATE_FAILED);
+		}
+		return new Response<>(result);
+	}
+
+}

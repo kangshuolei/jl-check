@@ -1,0 +1,30 @@
+package com.hbsi.structure.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.hbsi.response.Response;
+import com.hbsi.structure.service.StructureServie;
+
+/**
+ * 
+ * @author lijizhi
+ *	显示所有结构
+ */
+@RestController
+@RequestMapping("/structure")
+public class StructureController {
+	
+	@Autowired
+	private StructureServie structureService;
+	
+	@RequestMapping("/showAllStructure")
+	public Response<List<?>> showAllStructure(String regularNum){
+		return structureService.showAllStructureById(regularNum);		
+	}
+}

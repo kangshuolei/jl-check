@@ -1,0 +1,602 @@
+package com.hbsi.steel.service.impl;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.dao.EntrustmentDataMapper;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.ReverseBendingMapper;
+import com.hbsi.dao.SampleRecordMapper;
+import com.hbsi.dao.SteelTensileStrengthMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.domain.SteelTensileStrength;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.steel.entity.SteelWireRecord;
+import com.hbsi.steel.service.SteelService;
+import com.hbsi.util.Arith;
+
+/**
+ * 钢丝报告处理
+ * 
+ * @author lixuyang
+ * @version 1.0，2018-09-29
+ *
+ */
+@Service
+public class SteelServiceImpl implements SteelService {
+
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;// 钢丝
+	@Autowired
+	private SampleRecordMapper sampleRecordMapper;// 试验记录
+	@Autowired
+	private EntrustmentDataMapper entrustmentDataMapper;// 委托单数据
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;// 委托单
+	@Autowired
+	private SteelTensileStrengthMapper steelTensileStrengthMapper;// 钢丝抗拉强度
+	@Autowired
+	private ReverseBendingMapper reverseBendingMapper;// 扭转或弯曲
+
+
+	/**
+	 * 调入数据
+	 * 
+	 * @param entrustmentNum
+	 * @return
+	 */
+	@Transactional
+	@Override
+	public Response<SteelWireRecord> selectSteelWireDataList(String info) {
+		JSONObject json = JSONObject.parseObject(info);
+		String entrustmentNumber = json.getString("entrustmentNumber");
+		Integer steelNumber = json.getInteger("steelNumber");// 钢丝根数
+		if (entrustmentNumber == null || "".equals(entrustmentNumber)) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00007290", "委托单号不能为空", null);
+		}
+		if (steelNumber == null || steelNumber == 0) {
+			logger.info("钢丝根数不能为空");
+			return new Response<>("00007290", "钢丝根数不能为空", null);
+		}
+		SteelWireRecord re = new SteelWireRecord();// 返回
+		/**
+		 * 调入数据前，查询机器数据
+		 */
+		EntrustmentData entData = entrustmentDataMapper.selectEntrustmentData(entrustmentNumber);
+		if (entData.getTestClerkNumber() != null && !"".equals(entData.getTestClerkNumber())) {
+			re.setTestClerkNUmber(entData.getTestClerkNumber());
+		}
+		if (entData.getTestMachine() != null && !"".equals(entData.getTestMachine())) {
+			re.setMachineNumber(entData.getTestMachine());
+		}
+
+		/**
+		 * 调入数据前，先查询实验记录表，如果有数据，则根据钢丝根数重新调入。
+		 * 没有数据，则查询钢丝数据，如果有数据，则显示做过的钢丝数据。
+		 */
+		// 查询钢丝数据是否已存在
+		List<SteelWireData> steelList = steelWireDataMapper.selectByEnNum(entrustmentNumber);
+		//查询委托单号查询批次号
+		Entrustment ee = entrustmentMapper.selectEntrustmentNumber(entrustmentNumber);
+		if(ee.getSampleBatch()==null || ee.getSampleBatch()==0) {
+			logger.info("批次号不存在");
+			return new Response<>("00005290", "批次号不存在", null);
+		}
+		// 根据委托单号查询实验记录表（改为批次号）
+		List<SampleRecord> sampleList = sampleRecordMapper.selectData(ee.getSampleBatch());
+		if (sampleList.size() <= 0) {
+			if (steelList.size() > 0) {// 存在
+				re.setSteelWireDataList(steelList);
+			} else {
+				logger.info("实验记录不存在");
+				return new Response<>("00005290", "实验记录不存在", null);
+			}
+		}
+
+		/**
+		 * 实验记录存在，钢丝数据也存在时，则根据委托单号删除钢丝之前数据，重新调入
+		 */
+		if (steelList != null && steelList.size() > 0) {
+			int i = steelWireDataMapper.deleteByEntrustment(entrustmentNumber);
+			if (i >= 0) {
+				steelList = null;
+			}
+		}
+		if(steelList==null||steelList.size()==0) {
+			// 根据实验数据组合钢丝数据List
+			SteelWireRecord swr = comboWireData(sampleList, entrustmentNumber);
+			// 委托单数据（机器数据）
+			// 查询表中是否有该委托单数据
+			EntrustmentData ed = entrustmentDataMapper.selectEntrustmentData(entrustmentNumber);
+			if (ed != null) {
+				// 根据委托单号添加数据
+				EntrustmentData ed1 = new EntrustmentData();
+				ed1.setEntrustmentNumber(entrustmentNumber);
+				ed1.setTestClerkNumber(swr.getTestClerkNUmber());
+				ed1.setTestMachine(swr.getMachineNumber());
+				Integer result = entrustmentDataMapper.updateByPrimaryKeySelective(ed1);
+			}
+			// 钢丝数据
+			List<SteelWireData> list = swr.getSteelWireDataList();
+			if (list.size() > steelNumber) {// 判断list长度
+				List<SteelWireData> newList = list.subList(0, steelNumber);// 取钢丝根数的数据
+				list = newList;// 返回新的list
+			}
+			if (list.size() > 0) {
+				// 查询表中是否有该委托单数据
+				List<SteelWireData> l = steelWireDataMapper.selectByEnNum(entrustmentNumber);
+				Integer result = null;
+				if (l.size() > 0) {
+					// 修改
+					result = steelWireDataMapper.updateByPrimaryKeySelective(l);
+				} else {
+					// 新增
+					result = steelWireDataMapper.insertSteelData(list);
+				}
+				if (result > 0) {
+					logger.info("查询成功");
+				} else {
+					logger.error("查询钢丝数据信息异常 异常信息：{}", ExceptionEnum.STEEL_WIRE_SELECT_FAILED);
+					throw new BaseException(ExceptionEnum.STEEL_WIRE_SELECT_FAILED);
+				}
+			}
+			re.setMachineNumber(swr.getMachineNumber());
+			re.setTestClerkNUmber(swr.getTestClerkNUmber());
+			re.setSteelWireDataList(list);
+		}
+		return new Response<SteelWireRecord>(re);
+	}
+
+	/**
+	 * 将实验记录数据组合成钢丝数据
+	 * 
+	 * @param list
+	 * @param steelNumber
+	 * @return
+	 */
+	private SteelWireRecord comboWireData(List<SampleRecord> list, String entrustmentNumber) {
+//		Map<Integer, SteelWireData> map=new HashMap<Integer,SteelWireData>();
+		LinkedHashMap<Integer, SteelWireData> map = new LinkedHashMap<Integer, SteelWireData>();
+		StringBuilder clerk = new StringBuilder();
+		StringBuilder machine = new StringBuilder();
+		for (SampleRecord record : list) {
+			SteelWireData steelWireData = null;
+			if (!map.containsKey(record.getSampleNumber())) {
+				steelWireData = new SteelWireData();
+			} else {
+				steelWireData = map.get(record.getSampleNumber());
+			}
+			if (!clerk.toString().contains(record.getTestMembersNumber())) {
+				clerk.append(record.getTestMembersNumber());
+				clerk.append("  ");
+			}
+			if (!machine.toString().contains(record.getMachineNumber())) {
+				machine.append(record.getMachineNumber());
+				machine.append("  ");
+			}
+
+			if ("拉力".equals(record.getType())) {
+				steelWireData.setBreakTensile(record.getExperimentalData());
+				steelWireData.setMachineNumber(record.getMachineNumber());
+				steelWireData.setMachineType(record.getMachineType());
+			} else if ("弯曲".equals(record.getType())) {
+				steelWireData.setBendingTimes(record.getExperimentalData().intValue());
+			} else if ("扭转".equals(record.getType())) {
+				steelWireData.setTorsionTimes(record.getExperimentalData().intValue());
+			}
+			steelWireData.setEntrustmentNumber(entrustmentNumber);//放入委托单号
+			steelWireData.setSampleBatch(record.getSampleBatch());
+			map.put(record.getSampleNumber(), steelWireData);
+		}
+		List<SteelWireData> slist = new ArrayList<SteelWireData>(map.values());
+		SteelWireRecord sr = new SteelWireRecord();
+		sr.setMachineNumber(machine.toString());
+		sr.setTestClerkNUmber(clerk.toString());
+		sr.setSteelWireDataList(slist);
+		return sr;
+	}
+
+	/**
+	 * 修改钢丝数据（判定）
+	 * 
+	 * @param list
+	 * @return
+	 */
+	@Transactional
+	@Override
+	public Response<List<SteelWireData>> updateSteelWire(List<SteelWireData> list) {
+		String standardNum = "J&L 10302-2018";
+		if (list.size() <= 0) {
+			logger.info("钢丝数据不能为空");
+			return new Response<>("00007290", "钢丝数据不能为空", null);
+		}
+		List<SteelWireData> swList = new ArrayList<>();
+		for (int i = 0; i < list.size(); i++) {
+			SteelWireData s = new SteelWireData();
+			s.setId(list.get(i).getId());
+			s.setfDiamete(list.get(i).getfDiamete1());// 成品直径
+			s.setStrengthLevel(list.get(i).getStrengthLevel());// 强度级别
+			s.setUse(list.get(i).getUse());// 用途
+			s.setSurface(list.get(i).getSurface());// 表面状态
+			s.setBreakTensile(list.get(i).getBreakTensile1());// 破断拉力
+			s.setTorsionTimes(list.get(i).getTorsionTimes());// 扭转次数
+			s.setBendingTimes(list.get(i).getBendingTimes());// 弯曲次数
+			if (s.getId() == null || s.getId() == 0) {
+				logger.info("id为空");
+				return new Response<>("00007290", "id为空", null);
+			}
+			if (s.getfDiamete1() == null || s.getfDiamete1() == 0) {
+				logger.info("成品直径为空");
+				return new Response<>("00007290", "成品直径为空", null);
+			}
+			if (s.getStrengthLevel() == null || "".equals(s.getStrengthLevel())) {
+				logger.info("强度级别为空");
+				return new Response<>("00007290", "强度级别为空", null);
+			}
+			if (s.getUse() == null || "".equals(s.getUse())) {
+				logger.info("用途为空");
+				return new Response<>("00007290", "用途为空", null);
+			}
+			if (s.getSurface() == null || "".equals(s.getSurface())) {
+				logger.info("表面状态为空");
+				return new Response<>("00007290", "表面状态为空", null);
+			}
+			if (s.getBreakTensile1() == null || s.getBreakTensile1() == 0) {
+				logger.info("破断拉力为空");
+				return new Response<>("00007290", "表破断拉力为空", null);
+			}
+			if (s.getTorsionTimes() == null || s.getTorsionTimes() == 0) {
+				logger.info("扭转次数为空");
+				return new Response<>("00007290", "扭转次数为空", null);
+			}
+			if (s.getBendingTimes() == null || s.getBendingTimes() == 0) {
+				logger.info("弯曲次数为空");
+				return new Response<>("00007290", "弯曲次数为空", null);
+			}
+			// 计算抗拉强度
+			double d = (Arith.div(s.getBreakTensile1(),
+					Arith.mul(Math.PI, Arith.mul(s.getfDiamete1() / 2, s.getfDiamete1() / 2)))) * 1000;
+//			System.out.println(d);
+			s.setTensileStrength((int) Math.round(d));// 抗拉强度Arith.revision(d)
+			// 计算判定结果
+			// 1.查询抗拉强度范围
+			SteelTensileStrength sts = new SteelTensileStrength();
+			sts.setStandardNum(standardNum);// 标准文件编号
+			sts.setRatedStrength(s.getStrengthLevel());// 公称强度
+			sts.setUsage(s.getUse());// 用途
+			sts.setfDiamete(s.getfDiamete1());// 成品直径
+			sts.setStrengthValue(s.getTensileStrength());// 抗拉强度值
+			SteelTensileStrength sts1 = steelTensileStrengthMapper.selectSteelTSData(sts);
+			logger.info("根据sts:{}查询抗拉强度范围值,结果：{}", sts, sts1);
+			// 2.查询扭转值
+			ReverseBending r = new ReverseBending();
+			r.setStandardNum(standardNum);// 标准文件编号
+			r.setRatedStrength(s.getStrengthLevel());// 公称强度
+			if (s.getSurface().equals("U") || s.getSurface().equals("B")) {
+				r.setSurfaceState("UB");// 表面状态
+			} else {
+				r.setSurfaceState(s.getSurface());
+			}
+			r.setUsage(s.getUse());// 用途
+			r.setType("R");// 扭转
+			r.setfDiamete(s.getfDiamete1());// 成品直径
+			r.setRob(s.getTorsionTimes());// 扭转次数
+			System.out.println(r);
+			ReverseBending r1 = reverseBendingMapper.selectRBData(r);
+			logger.info("根据r:{}查询扭转值,结果：{}", r, r1);
+			// 3.查询弯曲值
+			ReverseBending b = new ReverseBending();
+			b.setStandardNum(standardNum);// 标准文件编号
+			b.setRatedStrength(s.getStrengthLevel());// 公称强度
+			if (s.getSurface().equals("U") || s.getSurface().equals("B")) {
+				b.setSurfaceState("UB");// 表面状态
+			} else {
+				b.setSurfaceState(s.getSurface());
+			}
+			b.setUsage(s.getUse());// 用途
+			b.setType("B");// 弯曲
+			b.setfDiamete(s.getfDiamete1());// 成品直径
+			b.setRob(s.getBendingTimes());// 弯曲次数
+			ReverseBending b1 = reverseBendingMapper.selectRBData(b);
+			logger.info("根据b:{}查询弯曲值,结果：{}", b, b1);
+
+			if (sts1 == null) {
+				logger.info("没有找到抗拉强度的判定数据");
+				return new Response<>("00007291", "没有找到抗拉强度的判定数据", null);
+			}
+			if (r1 == null) {
+				logger.info("没有找到扭转的判定数据");
+				return new Response<>("00007292", "没有找到扭转的判定数据", null);
+			}
+			if (b1 == null) {
+				logger.info("没有找到弯曲的判定数据");
+				return new Response<>("00007293", "没有找到弯曲的判定数据", null);
+			}
+
+			// （0代表合格，1代表重判后合格，2代表不合格）
+			int stateX = 0;// 抗拉强度
+			int stateY = 0;// 扭转
+			int stateZ = 0;// 弯曲
+			SteelTensileStrength sts2 = null;
+			ReverseBending r2 = null;
+			ReverseBending b2 = null;
+
+			/**
+			 * 判定抗拉强度
+			 */
+			if (s.getTensileStrength() >= sts1.getStrengthValueMin()
+					&& s.getTensileStrength() <= sts1.getStrengthValueMax()) {
+				// 抗拉强度合格
+				stateX = 0;
+			} else {
+				// 抗拉强度不合格，重新判定
+				if (s.getUse().equals("Z")) {// 重要用途，按一般用途重新判定
+					sts2 = judgTensileStrength(sts);
+					if (s.getTensileStrength() >= sts2.getStrengthValueMin()
+							&& s.getTensileStrength() <= sts2.getStrengthValueMax()) {
+						// 抗拉强度重判后合格
+						r2 = judgReverse(r);// 判定扭转是否符合一般用途
+						b2 = judgBending(b);// 判定弯曲是否符合一般用途
+						if (s.getTorsionTimes() >= r2.getValueRob() && s.getBendingTimes() >= b2.getValueRob()) {
+							stateX = 1;
+						} else {
+							stateX = 2;
+						}
+					} else {
+						// 抗拉强度重判后不合格，查询到符合的等级，比对结果
+						sts2 = steelTensileStrengthMapper.selectSteelTSData2(sts);
+						logger.info("根据sts:{}重新判定抗拉强度值,结果：{}", sts, sts2);
+						if (sts2 != null) {// 抗拉强度合格，则判定降级后其他项是否符合，
+							// 判定扭转降级后是否符合
+							r2 = judgReverse2(r, sts2.getRatedStrength());
+							// 判定弯曲降级后是否符合
+							b2 = judgBending2(b, sts2.getRatedStrength());
+							if (s.getTorsionTimes() >= r2.getValueRob() && s.getBendingTimes() >= b1.getValueRob()) {
+								stateX = 1;
+							} else {
+								stateX = 2;
+							}
+						} else {
+							// 抗拉强度不符合,则为不合格
+							stateX = 2;
+						}
+					}
+				} else if (s.getUse().equals("Y")) {// 一般用途，降级判定
+					sts2 = steelTensileStrengthMapper.selectSteelTSData2(sts);
+					logger.info("根据sts:{}重新判定抗拉强度值,结果：{}", sts, sts2);
+					if (sts2 != null) {
+						r2 = judgReverse2(r, sts2.getRatedStrength());// 判定扭转降级后是否符合
+						b2 = judgBending2(b, sts2.getRatedStrength());// 判定弯曲降级后是否符合
+						if (s.getTorsionTimes() >= r2.getValueRob() && s.getBendingTimes() >= b1.getValueRob()) {
+							stateX = 1;
+						} else {
+							stateX = 2;
+						}
+					}
+				}
+			}
+
+			/**
+			 * 判定扭转
+			 */
+			if (s.getTorsionTimes() >= r1.getValueRob()) {
+				// 扭转合格
+				stateY = 0;
+			} else {
+				// 扭转不合格，重新判定
+				if (s.getUse().equals("Z")) {// 重要用途，按一般用途重新判定
+					r2 = judgReverse(r);
+					// 按一般用途，判定是否符合
+					if (s.getTorsionTimes() >= r2.getValueRob()) {
+						// 扭转合格
+						sts2 = judgTensileStrength(sts);// 判定抗拉强度是否符合一般用途
+						b2 = judgBending(b);// 判定弯曲是否符合一般用途
+						if (s.getTensileStrength() >= sts2.getStrengthValueMin()
+								&& s.getTensileStrength() <= sts2.getStrengthValueMax()
+								&& s.getBendingTimes() >= b2.getValueRob()) {
+							stateY = 1;
+						} else {
+							stateY = 2;
+						}
+					} else {
+						// 扭转不合格，查询到符合的公称强度级别，判定其他项是否也符合
+						r2 = reverseBendingMapper.selectRBData2(r);
+						logger.info("根据r:{}按一般用途查询符合当前扭转值对应的公称强度,结果：{}", r, r2);
+						sts2 = judgTensileStrength2(sts, r2.getRatedStrength());// 判定抗拉强度，是否符合前扭转值对应的公称强度
+						b2 = judgBending2(b, r2.getRatedStrength());// 判定弯曲，是否符合当前扭转值对应的公称强度
+						if (s.getTensileStrength() >= sts2.getStrengthValueMin()
+								&& s.getTensileStrength() <= sts2.getStrengthValueMax()
+								&& s.getBendingTimes() >= b2.getValueRob()) {
+							stateY = 1;
+						} else {
+							stateY = 2;
+						}
+					}
+				} else if (s.getUse().equals("Y")) {// 一般用途，降级判定
+					r2 = reverseBendingMapper.selectRBData2(r);// 查询出符合的公称强度级别
+					logger.info("根据r:{}查询当前扭转值对应的公称强度,结果：{}", r, r2.getRatedStrength());
+					sts2 = judgTensileStrength2(sts, r2.getRatedStrength());// 判定抗拉强度降级后是否符合
+					b2 = judgBending2(b, r2.getRatedStrength());// 判定弯曲降级后是否符合
+					if (s.getTensileStrength() >= sts2.getStrengthValueMin()
+							&& s.getTensileStrength() <= sts2.getStrengthValueMax()
+							&& s.getBendingTimes() >= b2.getValueRob()) {
+						stateY = 1;
+					} else {
+						stateY = 2;
+					}
+				}
+			}
+
+			/**
+			 * 判定弯曲
+			 */
+			if (s.getBendingTimes() >= b1.getValueRob()) {
+				// 弯曲合格
+				stateZ = 0;
+			} else {
+				// 弯曲不合格，重新判定
+				if (s.getUse().equals("Z")) {// 重要用途，按一般用途重新判定
+					b2 = judgBending(b);
+					if (s.getBendingTimes() >= b2.getValueRob()) {
+						// 弯曲合格
+						sts2 = judgTensileStrength(sts);// 判定抗拉强度是否符合一般用途
+						r2 = judgReverse(r);// 判定扭转是否符合一般用途
+						if (s.getTensileStrength() >= sts2.getStrengthValueMin()
+								&& s.getTensileStrength() <= sts2.getStrengthValueMax()
+								&& s.getTorsionTimes() >= r2.getValueRob()) {
+							stateZ = 1;
+						} else {
+							stateZ = 2;
+						}
+
+					} else {
+						// 弯曲不合格，查询到符合的公称强度级别，比对结果
+						b2 = reverseBendingMapper.selectRBData2(b);
+						logger.info("根据b:{}查询当前弯曲值对应的公称强度,结果：{}", b, b2.getRatedStrength());
+						sts2 = judgTensileStrength2(sts, b2.getRatedStrength());// 判定抗拉强度降级后是否符合
+						r2 = judgReverse2(r, b2.getRatedStrength());// 判定扭转降级后是否符合
+						if (s.getTensileStrength() >= sts2.getStrengthValueMin()
+								&& s.getTensileStrength() <= sts2.getStrengthValueMax()
+								&& s.getTorsionTimes() >= r2.getValueRob()) {
+							stateZ = 1;
+						} else {
+							stateZ = 2;
+						}
+					}
+				} else if (s.getUse().equals("Y")) {// 一般用途，降级判定
+					b2 = reverseBendingMapper.selectRBData2(b);
+					logger.info("根据b:{}查询当前弯曲值对应的公称强度,结果：{}", b, b2.getRatedStrength());
+					sts2 = judgTensileStrength2(sts, b2.getRatedStrength());// 判定抗拉强度降级后是否符合
+					r2 = judgReverse2(r, b2.getRatedStrength());// 判定扭转降级后是否符合
+					if (s.getTensileStrength() >= sts2.getStrengthValueMin()
+							&& s.getTensileStrength() <= sts2.getStrengthValueMax()
+							&& s.getTorsionTimes() >= r2.getValueRob()) {
+						stateZ = 1;
+					} else {
+						stateZ = 2;
+					}
+				}
+			}
+			/**
+			 * 综合结果
+			 */
+			if (stateX == 0 && stateY == 0 && stateZ == 0) {
+				s.setJudge(s.getStrengthLevel() + s.getUse());// 判定
+			} else if (stateX == 1 && stateY == 0 && stateZ == 0) {
+				s.setJudge(sts2.getRatedStrength() + sts2.getUsage());// 判定
+			} else if (stateX == 0 && stateY == 1 && stateZ == 0) {
+				s.setJudge(r2.getRatedStrength() + r2.getUsage());// 判定
+			} else if (stateX == 0 && stateY == 0 && stateZ == 1) {
+				s.setJudge(b2.getRatedStrength() + b2.getUsage());// 判定
+			} else if (stateX == 2 || stateY == 2 || stateZ == 2) {
+				s.setJudge("不合格");
+			}
+			swList.add(s);
+		}
+		try {
+			Integer result = steelWireDataMapper.updateByPrimaryKeySelective(swList);
+			logger.info("根据swList:{}修改钢丝数据信息,结果：{}", swList, result);
+		} catch (Exception e) {
+			logger.error("修改钢丝数据信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.STEEL_WIRE_UPDATE_FAILED);
+		}
+		return new Response<>(swList);
+	}
+
+	/**
+	 * 按一般用途判定抗拉强度
+	 * 
+	 * @param sts
+	 * @return
+	 */
+	private SteelTensileStrength judgTensileStrength(SteelTensileStrength sts) {
+		sts.setUsage("Y");
+		SteelTensileStrength sts2 = steelTensileStrengthMapper.selectSteelTSData(sts);
+		logger.info("根据sts:{}按一般用途查询抗拉强度范围值,结果：{}", sts, sts2);
+		return sts2;
+	}
+
+	/**
+	 * 降级后判定抗拉强度
+	 * 
+	 * @param sts
+	 * @return
+	 */
+	private SteelTensileStrength judgTensileStrength2(SteelTensileStrength sts, String ratedStrength) {
+		sts.setRatedStrength(ratedStrength);
+		SteelTensileStrength sts2 = steelTensileStrengthMapper.selectSteelTSData(sts);
+		logger.info("根据sts:{}降级后查询抗拉强度范围值,结果：{}", sts, sts2);
+		return sts2;
+	}
+
+	/**
+	 * 按一般用途判定扭转
+	 * 
+	 * @param r
+	 * @return
+	 */
+	private ReverseBending judgReverse(ReverseBending r) {
+		r.setUsage("Y");
+		ReverseBending r2 = reverseBendingMapper.selectRBData(r);
+		logger.info("根据r:{}按一般用途查询扭转值,结果：{}", r, r2);
+		return r2;
+	}
+
+	/**
+	 * 降级后判定扭转
+	 * 
+	 * @param r
+	 * @return
+	 */
+	private ReverseBending judgReverse2(ReverseBending r, String ratedStrength) {
+		r.setRatedStrength(ratedStrength);// 公称强度
+		ReverseBending r2 = reverseBendingMapper.selectRBData(r);
+		logger.info("根据r:{}降级后查询当前扭转值对应强度级别,结果：{}", r, r2.getRatedStrength());
+		return r2;
+	}
+
+	/**
+	 * 按一般用途判定弯曲
+	 * 
+	 * @param b
+	 * @return
+	 */
+	private ReverseBending judgBending(ReverseBending b) {
+		b.setUsage("Y");
+		ReverseBending b2 = reverseBendingMapper.selectRBData(b);
+		logger.info("根据b:{}按一般用途查询弯曲值,结果：{}", b, b2);
+		return b2;
+	}
+
+	/**
+	 * 降级后判定弯曲
+	 * 
+	 * @param b
+	 * @return
+	 */
+	private ReverseBending judgBending2(ReverseBending b, String ratedStrength) {
+		b.setRatedStrength(ratedStrength);
+		ReverseBending b2 = reverseBendingMapper.selectRBData(b);
+		logger.info("根据b:{}降级后查询当前弯曲值对应强度级别,结果：{}", b, b2);
+		return b2;
+	}
+
+}

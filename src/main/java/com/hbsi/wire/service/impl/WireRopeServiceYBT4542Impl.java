@@ -1,0 +1,228 @@
+package com.hbsi.wire.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import javax.annotation.Resource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+
+import com.hbsi.dao.ReverseBendingMapper;
+import com.hbsi.dao.StrengthDeviationMapper;
+import com.hbsi.dao.WireDataMapper;
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.domain.StrengthDeviation;
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.entity.WireRopeData;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.util.Arith;
+import com.hbsi.wire.service.WireRopeService;
+import com.hbsi.wire.service.WireRopeServiceYBT4542;
+
+@Service
+public class WireRopeServiceYBT4542Impl implements WireRopeServiceYBT4542 {
+
+	/**
+	 * YB/T 4542-2016的判定逻辑
+	 */
+	@Autowired
+	private WireDataMapper wireDataMapper;
+	@Autowired
+	private ReverseBendingMapper reverseBendingMapper;
+	@Resource
+	private WireRopeService wireRopeService;
+	@Autowired
+	private StrengthDeviationMapper strengthDeviationMapper;
+	private Logger logger = LoggerFactory.getLogger(this.getClass());
+
+	@Override
+	public Response<WireRope> judgeWire(WireRope wireRope) {
+		if (wireRope == null) {
+			logger.info("传入数据为空");
+			return new Response<>("00001800", "钢丝绳数据为空", null);
+		} else {
+			String m = validateWireRope(wireRope);
+			if (!"SUCCESS".equals(m)) {
+				return new Response<WireRope>("00001111", m, null);
+			}
+			// 进行拆股实验，得到结论
+			Object[] diameterSet = judgeSeparate(wireRope);
+			// sb1数据是存储到memo中，合格是为空，不合格则存储详细的不合格信息
+			StringBuilder sb1 = new StringBuilder();
+			// sb的数据是存储到evaluation中，只有合格不合格这个字段
+			String sb = new String();
+			/**
+			 * 综合判定结果，判定方法最后再写，按照我的思路
+			 * 
+			 */
+			for (Object o : diameterSet) {
+				double ndiameter = Double.parseDouble(o.toString());
+				WireData w = new WireData();
+				w.setnDiamete(ndiameter);
+				w.setEntrustmentNumber(wireRope.getEnstrustmentNumber());
+				List<WireData> wireDataList = wireDataMapper.selectByNdia(w);
+				Integer strengthNum = 0;
+				Integer turnNum = 0;
+				Integer windingNum = 0;
+				for (WireData wd : wireDataList) {
+					if (!ObjectUtils.isEmpty(wd.getStrengthJudge())) {
+						strengthNum++;
+					}
+					if (!ObjectUtils.isEmpty(wd.getTurnJudge())) {
+						turnNum++;
+					}
+					if (!ObjectUtils.isEmpty(wd.getWindingJudge())) {
+						windingNum++;
+					}
+				}
+				if (strengthNum > 0 || turnNum > 0 || windingNum > 0) {
+					sb1.append("Φ").append(String.format("%.2f", ndiameter)).append("钢丝[");
+					sb1.append(strengthNum > 0 ? "抗拉强度有" + strengthNum + "个不合格":"");
+					sb1.append(turnNum > 0 ?  "扭转有" + turnNum + "个不合格": "");
+					sb1.append(windingNum > 0 ? "弯曲有" + windingNum + "个不合格" :"");
+					sb1.append("]");
+				}
+			}
+			if (sb1.length() <= 0 || sb1 == null) {
+				sb = "合格";
+			} else {
+				sb = "不合格";
+			}
+			wireRope.setEvaluation(sb.toString());
+			wireRope.setMemo(sb1.toString());
+			//把新的wireDataList放到wireRope中，返回给前端（用途是前端刷新页面）
+			List<WireData> list = wireDataMapper.selectByEnNum(wireRope.getEnstrustmentNumber());
+			wireRope.setWireDataList(list);
+			try {
+				wireRopeService.saveWireData(wireRope);
+			} catch (Exception e) {
+				logger.error("钢丝绳判定结果保存失败,{}", e);
+				throw new BaseException(ExceptionEnum.WIREROPE_SAVE_ERROR);
+			}
+		}
+		return new Response<WireRope>(wireRope);
+	}
+
+	/**
+	 * 拆股实验结论判定
+	 * 
+	 * @param wireRope
+	 * @return
+	 */
+	private Object[] judgeSeparate(WireRope wireRope) {
+		List<WireData> wireDataList = wireDataMapper.selectByEnNum(wireRope.getEnstrustmentNumber());
+		// 按照试验钢丝数据公称直径组合数据
+		Map<Double, List<WireData>> dataMap = new HashMap<>();
+		List<WireData> l = null;
+		for (WireData wireData : wireDataList) {
+			if (!dataMap.containsKey(wireData.getnDiamete1())) {
+				l = new ArrayList<WireData>();
+				l.add(wireData);
+			} else {
+				l = dataMap.get(wireData.getnDiamete1());
+				l.add(wireData);
+			}
+			dataMap.put(wireData.getnDiamete1(), l);
+		}
+		// 计算当前出抗拉强度，存到wireData中
+		for (WireData wireData : wireDataList) {
+			double d1 = (Arith.div(wireData.getBreakTensile1(),
+					Arith.mul(Math.PI, Arith.mul(wireData.getnDiamete1() / 2, wireData.getnDiamete1() / 2)))) * 1000;
+			wireData.setTensileStrength((int) Math.round(d1));
+			wireDataMapper.updateByPrimaryKeySelective(wireData);
+		}
+		// 把所有的ndiameter当成返回值，传递给judgeWire（）
+		Object[] diameterSet = dataMap.keySet().toArray();
+		Iterator<Double> it = dataMap.keySet().iterator();
+		while (it.hasNext()) {
+			double ndiameter = it.next();
+			List<WireData> dataList = dataMap.get(ndiameter);
+			// 对这个wireData进行判定
+			for (WireData wireData : dataList) {
+				try {
+					// 清空上次的判定结果
+					wireData.setTensileJudge("");
+					wireData.setStrengthJudge("");
+					wireData.setTurnJudge("");
+					wireData.setWindingJudge("");
+					wireDataMapper.updateByPrimaryKey(wireData);
+					// 1.判定抗拉强度
+					String strengthLevel = wireRope.getStrengthLevel();
+					WireRopeData wireRopeData = new WireRopeData();
+					wireRopeData.setStandardNum("YB/T 4542-2016");
+					wireRopeData.setNdiamete(ndiameter);
+					StrengthDeviation deviation = strengthDeviationMapper.selectByDiamate(wireRopeData);
+					Integer minStren = Integer.parseInt(strengthLevel) - 50;
+					Integer maxStren = (int) (Math.round(deviation.getValue()) + Integer.parseInt(strengthLevel));
+					if (wireData.getTensileStrength() <= minStren || wireData.getTensileStrength() >= maxStren) {
+						wireData.setStrengthJudge("**");
+					}
+					// 2.判定扭转
+					ReverseBending rb = new ReverseBending();
+					rb.setStandardNum(wireRope.getJudgeStandard());
+					rb.setfDiamete(ndiameter);
+					rb.setRatedStrength(strengthLevel);
+					rb.setType("R");
+					ReverseBending ReverseData = reverseBendingMapper.selectRBFor4542(rb);
+					if (wireData.getTurnTimes() < ReverseData.getValueRob()) {
+						wireData.setTurnJudge("**");
+					}
+					// 3.判定弯曲
+					rb.setType("B");
+					ReverseBending BendingData = reverseBendingMapper.selectRBFor4542(rb);
+					if (wireData.getWindingTimes() < BendingData.getValueRob()) {
+						wireData.setWindingJudge("**");
+					}
+					wireDataMapper.updateByPrimaryKey(wireData);
+				} catch (Exception e) {
+					logger.error("拆股实验判定过程中出错了，原因是:{}", e);
+				}
+			}
+		}
+		return diameterSet;
+	}
+
+	/**
+	 * 验证有效性
+	 * 
+	 * @param wireRope
+	 * @return
+	 */
+	private String validateWireRope(WireRope wireRope) {
+		if (wireRope.getEnstrustmentNumber() == null || "".equals(wireRope.getEnstrustmentNumber())) {
+			return "委托单号为空，请输入委托单号";
+		}
+		if (wireRope.getSpecification() == null || "".equals(wireRope.getSpecification())) {
+			return "规格不能为空，请填写规格";
+		}
+
+		if (!Pattern.matches("^\\d+(\\.\\d+)?$", wireRope.getSpecification())) {
+			return "规格应为数值";
+		}
+		if (wireRope.getStructure() == null || "".equals(wireRope.getStructure())) {
+			return "结构不能为空，请输入或选择结构";
+		}
+		if (wireRope.getSurfaceState() == null || "".equals(wireRope.getSurfaceState())) {
+			return "表面状态不能为空";
+		}
+		if (wireRope.getStrengthLevel() == null || "".equals(wireRope.getStrengthLevel())) {
+			return "强度级别不能为空";
+		}
+		List<WireData> list = wireRope.getWireDataList();
+		if (list == null || list.size() == 0) {
+			return "钢丝绳中钢丝数据为空";
+		}
+		return "SUCCESS";
+	}
+}

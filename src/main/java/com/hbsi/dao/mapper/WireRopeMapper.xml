@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hbsi.dao.WireRopeMapper">
+  <resultMap id="BaseResultMap" type="com.hbsi.domain.WireRope">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="enstrustment_number" jdbcType="VARCHAR" property="enstrustmentNumber" />
+    <result column="producer_number" jdbcType="VARCHAR" property="producerNumber" />
+    <result column="report_number" jdbcType="VARCHAR" property="reportNumber" />
+    <result column="report_date" jdbcType="VARCHAR" property="reportDate" />
+    <result column="specification" jdbcType="VARCHAR" property="specification" />
+    <result column="structure" jdbcType="VARCHAR" property="structure" />
+    <result column="strength_level" jdbcType="VARCHAR" property="strengthLevel" />
+    <result column="surface_state" jdbcType="VARCHAR" property="surfaceState" />
+    <result column="twisting_method" jdbcType="VARCHAR" property="twistingMethod" />
+    <result column="measure_break_tensile" jdbcType="DOUBLE" property="measureBreakTensile" />
+    <result column="min_break_tensile" jdbcType="DOUBLE" property="minBreakTensile" />
+    <result column="diamete" jdbcType="DOUBLE" property="diamete" />
+    <result column="diamete_non_rundness" jdbcType="DOUBLE" property="diameteNonRundness" />
+    <result column="stock_split_method" jdbcType="VARCHAR" property="stockSplitMethod" />
+    <result column="trial_class" jdbcType="VARCHAR" property="trialClass" />
+    <result column="non_trial_class" jdbcType="VARCHAR" property="nonTrialClass" />
+    <result column="center_diamete" jdbcType="DOUBLE" property="centerDiamete" />
+    <result column="center_strength" jdbcType="VARCHAR" property="centerStrength" />
+    <result column="temperature" jdbcType="VARCHAR" property="temperature" />
+    <result column="test_standard" jdbcType="VARCHAR" property="testStandard" />
+    <result column="recorder_number" jdbcType="VARCHAR" property="recorderNumber" />
+    <result column="state" jdbcType="CHAR" property="state" />
+    <result column="evaluation" jdbcType="VARCHAR" property="evaluation" />
+    <result column="memo" jdbcType="VARCHAR" property="memo" />
+    <result column="recorder_memo" jdbcType="VARCHAR" property="recorderMemo" />
+    <result column="judge_standard" jdbcType="VARCHAR" property="judgeStandard" />
+    <result column="testman" jdbcType="VARCHAR" property="testman" />
+    <result column="test_machine" jdbcType="VARCHAR" property="testMachine" />
+  </resultMap>
+  <resultMap id="WireResultMap" type="com.hbsi.domain.WireRope">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="enstrustment_number" jdbcType="VARCHAR" property="enstrustmentNumber" />
+    <result column="producer_number" jdbcType="VARCHAR" property="producerNumber" />
+    <result column="report_number" jdbcType="VARCHAR" property="reportNumber" />
+    <result column="report_date" jdbcType="VARCHAR" property="reportDate" />
+    <result column="specification" jdbcType="VARCHAR" property="specification" />
+    <result column="structure" jdbcType="VARCHAR" property="structure" />
+    <result column="strength_level" jdbcType="VARCHAR" property="strengthLevel" />
+    <result column="surface_state" jdbcType="VARCHAR" property="surfaceState" />
+    <result column="twisting_method" jdbcType="VARCHAR" property="twistingMethod" />
+    <result column="measure_break_tensile" jdbcType="DOUBLE" property="measureBreakTensile" />
+    <result column="min_break_tensile" jdbcType="DOUBLE" property="minBreakTensile" />
+    <result column="diamete" jdbcType="DOUBLE" property="diamete" />
+    <result column="diamete_non_rundness" jdbcType="DOUBLE" property="diameteNonRundness" />
+    <result column="stock_split_method" jdbcType="VARCHAR" property="stockSplitMethod" />
+    <result column="trial_class" jdbcType="VARCHAR" property="trialClass" />
+    <result column="non_trial_class" jdbcType="VARCHAR" property="nonTrialClass" />
+    <result column="center_diamete" jdbcType="DOUBLE" property="centerDiamete" />
+    <result column="center_strength" jdbcType="VARCHAR" property="centerStrength" />
+    <result column="temperature" jdbcType="VARCHAR" property="temperature" />
+    <result column="test_standard" jdbcType="VARCHAR" property="testStandard" />
+    <result column="recorder_number" jdbcType="VARCHAR" property="recorderNumber" />
+    <result column="state" jdbcType="CHAR" property="state" />
+    <result column="evaluation" jdbcType="VARCHAR" property="evaluation" />
+    <result column="memo" jdbcType="VARCHAR" property="memo" />
+    <result column="recorder_memo" jdbcType="VARCHAR" property="recorderMemo" />
+    <result column="testman" jdbcType="VARCHAR" property="testman" />
+    <result column="test_machine" jdbcType="VARCHAR" property="testMachine" />
+    <collection property="wireDataList" javaType="java.util.List" ofType="com.hbsi.domain.WireData" select="selectWireData" column="enstrustment_number">
+    </collection>
+  </resultMap>
+  <resultMap id="WireDataResultMap" type="com.hbsi.domain.WireData">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="entrustment_number" jdbcType="VARCHAR" property="entrustmentNumber"/>
+    <result column="n_diamete" jdbcType="DOUBLE" property="nDiamete" />
+    <result column="diamete" jdbcType="DOUBLE" property="diamete" />
+    <result column="diamete_judge" jdbcType="VARCHAR" property="diameteJudge" />
+    <result column="break_tensile" jdbcType="DOUBLE" property="breakTensile" />
+    <result column="tensile_judge" jdbcType="VARCHAR" property="tensileJudge" />
+    <result column="tensile_strength" jdbcType="INTEGER" property="tensileStrength" />
+    <result column="strength_judge" jdbcType="VARCHAR" property="strengthJudge" />
+    <result column="knot_tension" jdbcType="DOUBLE" property="knotTension" />
+    <result column="knot_rate" jdbcType="DOUBLE" property="knotRate" />
+    <result column="knot_judge" jdbcType="VARCHAR" property="knotJudge" />
+    <result column="turn_times" jdbcType="INTEGER" property="turnTimes" />
+    <result column="turn_judge" jdbcType="VARCHAR" property="turnJudge" />
+    <result column="winding_times" jdbcType="INTEGER" property="windingTimes" />
+    <result column="twine_times" jdbcType="INTEGER" property="twineTimes" />
+    <result column="zinc_weight" jdbcType="DOUBLE" property="zincWeight" />
+    <result column="zinc_judge" jdbcType="VARCHAR" property="zincJudge" />
+    <result column="state" jdbcType="CHAR" property="state" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    <!--
+      WARNING - @mbg.generated
+      This element is automatically generated by MyBatis Generator, do not modify.
+      This element was generated on Sat Sep 29 11:35:30 CST 2018.
+    -->
+    id, enstrustment_number, producer_number, report_number, report_date, specification, 
+    structure, strength_level, surface_state, twisting_method, measure_break_tensile, 
+    min_break_tensile, diamete, diamete_non_rundness, stock_split_method, trial_class, 
+    non_trial_class, center_diamete, center_strength, temperature, test_standard, recorder_number, 
+    state, evaluation, memo, recorder_memo,judge_standard,testman,test_machine
+  </sql>
+  <!-- 查询钢丝绳报告中的委托单号 -->
+  <select id="selectEntList" parameterType="com.hbsi.domain.WireRope" resultType="java.lang.String">
+  	select enstrustment_number from wire_rope where judge_standard=#{judgeStandard} and state='000' and enstrustment_number like CONCAT('%',#{enstrustmentNumber},'%')
+  </select>
+  <!-- 根据委托单号查询钢丝数据 -->
+  <select id="selectWireData" parameterType="java.lang.String" resultMap="WireDataResultMap">
+  	select id,entrustment_number, n_diamete, diamete, diamete_judge, break_tensile, tensile_judge, tensile_strength, 
+    strength_judge, knot_tension, knot_rate, knot_judge, turn_times, turn_judge, winding_times, 
+    twine_times, zinc_weight, zinc_judge, state from wire_data where entrustment_number=#{entrustmentNumber} and state='000'
+  </select>
+  <!-- 根据委托单查询钢丝绳报告和数据 -->
+  <select id="selectWireRope" parameterType="java.lang.String" resultMap="WireResultMap">
+  	select <include refid="Base_Column_List"></include> from wire_rope where enstrustment_number=#{entrustmentNumber} and state='000'
+  </select>
+  <!-- 根据委托单号查询钢丝绳报告 -->
+  <select id="selectByEnsNum" parameterType="java.lang.String" resultMap="BaseResultMap">
+  	select <include refid="Base_Column_List"></include>
+
+  	from wire_rope where enstrustment_number=#{enstrustmentNumber} and state &lt;&gt;'999'
+  </select>
+  <!-- 查询已经生成的钢丝绳报告 -->
+  <select id="selectWireRopeList" parameterType="com.hbsi.domain.WireRope" resultMap="BaseResultMap">
+  	select <include refid="Base_Column_List"></include>
+  	from wire_rope where state="100" 
+  	<if test="reportNumber!=null and reportNumber!=''">
+  		and report_number=#{reportNumber}
+  	</if>
+  	<if test="producerNumber!=null and producerNumber!=''">
+  		and producer_number=#{producerNumber}
+  	</if>
+  	<if test="judgeStandard!=null and judgeStandard!=''">
+  	    and judge_standard=#{judgeStandard}
+  	</if>
+  	order by id desc
+  </select>
+  <!-- 修改钢丝绳判定结果 -->
+  <update id="updateRopeEvaluatuion" parameterType="com.hbsi.domain.WireRope">
+  	update wire_rope set evaluation=#{evaluation}, memo = #{memo,jdbcType=VARCHAR}
+  	 where enstrustment_number=#{enstrustmentNumber}
+  </update>
+  
+  <!-- 根据委托单号修改检测标准 -->
+  <update id="updateStandard" parameterType="com.hbsi.domain.WireRope" >
+  	update wire_rope set test_standard=#{testStandard} where enstrustment_number=#{enstrustmentNumber} 
+  </update>
+  
+  <!-- 根据委托单号调整试验钢丝类别 -->
+  <update id="updateTrialClass" parameterType="com.hbsi.domain.WireRope">
+  	update wire_rope set trial_class=#{trialClass} where enstrustment_number=#{enstrustmentNumber} and state='000'
+  </update>
+  <!-- 根据委托单号修改钢丝绳数据 -->
+   <update id="updateByenstrustmentNumber" parameterType="com.hbsi.domain.WireRope">
+    update wire_rope
+    set 
+      producer_number = #{producerNumber,jdbcType=VARCHAR},
+      report_number = #{reportNumber,jdbcType=VARCHAR},
+      report_date = #{reportDate,jdbcType=VARCHAR},
+      specification = #{specification,jdbcType=VARCHAR},
+      structure = #{structure,jdbcType=VARCHAR},
+      strength_level = #{strengthLevel,jdbcType=VARCHAR},
+      surface_state = #{surfaceState,jdbcType=VARCHAR},
+      twisting_method = #{twistingMethod,jdbcType=VARCHAR},
+      measure_break_tensile = #{measureBreakTensile,jdbcType=DOUBLE},
+      min_break_tensile = #{minBreakTensile,jdbcType=DOUBLE},
+      diamete = #{diamete,jdbcType=DOUBLE},
+      diamete_non_rundness = #{diameteNonRundness,jdbcType=DOUBLE},
+      stock_split_method = #{stockSplitMethod,jdbcType=VARCHAR},
+      trial_class = #{trialClass,jdbcType=VARCHAR},
+      non_trial_class = #{nonTrialClass,jdbcType=VARCHAR},
+      center_diamete = #{centerDiamete,jdbcType=DOUBLE},
+      center_strength = #{centerStrength,jdbcType=VARCHAR},
+      temperature = #{temperature,jdbcType=VARCHAR},
+      test_standard = #{testStandard,jdbcType=VARCHAR},
+      recorder_number = #{recorderNumber,jdbcType=VARCHAR},
+      evaluation = #{evaluation,jdbcType=VARCHAR},
+      memo = #{memo,jdbcType=VARCHAR},
+      recorder_memo = #{recorderMemo,jdbcType=VARCHAR},
+      judge_standard=#{judgeStandard,jdbcType=VARCHAR}
+    where enstrustment_number = #{enstrustmentNumber,jdbcType=VARCHAR}
+  </update>
+  
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    <!--
+      WARNING - @mbg.generated
+      This element is automatically generated by MyBatis Generator, do not modify.
+      This element was generated on Sat Sep 29 11:35:30 CST 2018.
+    -->
+    select 
+    <include refid="Base_Column_List" />
+    from wire_rope
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    <!--
+      WARNING - @mbg.generated
+      This element is automatically generated by MyBatis Generator, do not modify.
+      This element was generated on Sat Sep 29 11:35:30 CST 2018.
+    -->
+    delete from wire_rope
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.hbsi.domain.WireRope">
+    <!--
+      WARNING - @mbg.generated
+      This element is automatically generated by MyBatis Generator, do not modify.
+      This element was generated on Sat Sep 29 11:35:30 CST 2018.
+    -->
+    insert into wire_rope ( enstrustment_number, producer_number, 
+      report_number, report_date, specification, 
+      structure, strength_level, surface_state, 
+      twisting_method, measure_break_tensile, min_break_tensile, 
+      diamete, diamete_non_rundness, stock_split_method, 
+      trial_class, non_trial_class, center_diamete, 
+      center_strength, temperature, test_standard, 
+      recorder_number, state, evaluation, 
+      memo, recorder_memo,judge_standard)
+    values (#{enstrustmentNumber,jdbcType=VARCHAR}, #{producerNumber,jdbcType=VARCHAR}, 
+      #{reportNumber,jdbcType=VARCHAR}, #{reportDate,jdbcType=VARCHAR}, #{specification,jdbcType=VARCHAR}, 
+      #{structure,jdbcType=VARCHAR}, #{strengthLevel,jdbcType=VARCHAR}, #{surfaceState,jdbcType=VARCHAR}, 
+      #{twistingMethod,jdbcType=VARCHAR}, #{measureBreakTensile,jdbcType=DOUBLE}, #{minBreakTensile,jdbcType=DOUBLE}, 
+      #{diamete,jdbcType=DOUBLE}, #{diameteNonRundness,jdbcType=DOUBLE}, #{stockSplitMethod,jdbcType=VARCHAR}, 
+      #{trialClass,jdbcType=VARCHAR}, #{nonTrialClass,jdbcType=VARCHAR}, #{centerDiamete,jdbcType=DOUBLE}, 
+      #{centerStrength,jdbcType=VARCHAR}, #{temperature,jdbcType=VARCHAR}, #{testStandard,jdbcType=VARCHAR}, 
+      #{recorderNumber,jdbcType=VARCHAR}, #{state,jdbcType=CHAR}, #{evaluation,jdbcType=VARCHAR}, 
+      #{memo,jdbcType=VARCHAR}, #{recorderMemo,jdbcType=VARCHAR},#{judgeStandard})
+  </insert>
+  <insert id="insertSelective" parameterType="com.hbsi.domain.WireRope" useGeneratedKeys="true" keyProperty="id">
+    <!--
+      WARNING - @mbg.generated
+      This element is automatically generated by MyBatis Generator, do not modify.
+      This element was generated on Sat Sep 29 11:35:30 CST 2018.
+    -->
+    insert into wire_rope
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="enstrustmentNumber != null">
+        enstrustment_number,
+      </if>
+      <if test="producerNumber != null">
+        producer_number,
+      </if>
+      <if test="reportNumber != null">
+        report_number,
+      </if>
+      <if test="reportDate != null">
+        report_date,
+      </if>
+      <if test="specification != null">
+        specification,
+      </if>
+      <if test="structure != null">
+        structure,
+      </if>
+      <if test="strengthLevel != null">
+        strength_level,
+      </if>
+      <if test="surfaceState != null">
+        surface_state,
+      </if>
+      <if test="twistingMethod != null">
+        twisting_method,
+      </if>
+      <if test="measureBreakTensile != null">
+        measure_break_tensile,
+      </if>
+      <if test="minBreakTensile != null">
+        min_break_tensile,
+      </if>
+      <if test="diamete != null">
+        diamete,
+      </if>
+      <if test="diameteNonRundness != null">
+        diamete_non_rundness,
+      </if>
+      <if test="stockSplitMethod != null">
+        stock_split_method,
+      </if>
+      <if test="trialClass != null">
+        trial_class,
+      </if>
+      <if test="nonTrialClass != null">
+        non_trial_class,
+      </if>
+      <if test="centerDiamete != null">
+        center_diamete,
+      </if>
+      <if test="centerStrength != null">
+        center_strength,
+      </if>
+      <if test="temperature != null">
+        temperature,
+      </if>
+      <if test="testStandard != null">
+        test_standard,
+      </if>
+      <if test="recorderNumber != null">
+        recorder_number,
+      </if>
+      <if test="state != null">
+        state,
+      </if>
+      <if test="evaluation != null">
+        evaluation,
+      </if>
+      <if test="memo != null">
+        memo,
+      </if>
+      <if test="recorderMemo != null">
+        recorder_memo,
+      </if>
+      <if test="judgeStandard != null">
+        judge_standard,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="enstrustmentNumber != null">
+        #{enstrustmentNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="producerNumber != null">
+        #{producerNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="reportNumber != null">
+        #{reportNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="reportDate != null">
+        #{reportDate,jdbcType=VARCHAR},
+      </if>
+      <if test="specification != null">
+        #{specification,jdbcType=VARCHAR},
+      </if>
+      <if test="structure != null">
+        #{structure,jdbcType=VARCHAR},
+      </if>
+      <if test="strengthLevel != null">
+        #{strengthLevel,jdbcType=VARCHAR},
+      </if>
+      <if test="surfaceState != null">
+        #{surfaceState,jdbcType=VARCHAR},
+      </if>
+      <if test="twistingMethod != null">
+        #{twistingMethod,jdbcType=VARCHAR},
+      </if>
+      <if test="measureBreakTensile != null">
+        #{measureBreakTensile,jdbcType=DOUBLE},
+      </if>
+      <if test="minBreakTensile != null">
+        #{minBreakTensile,jdbcType=DOUBLE},
+      </if>
+      <if test="diamete != null">
+        #{diamete,jdbcType=DOUBLE},
+      </if>
+      <if test="diameteNonRundness != null">
+        #{diameteNonRundness,jdbcType=DOUBLE},
+      </if>
+      <if test="stockSplitMethod != null">
+        #{stockSplitMethod,jdbcType=VARCHAR},
+      </if>
+      <if test="trialClass != null">
+        #{trialClass,jdbcType=VARCHAR},
+      </if>
+      <if test="nonTrialClass != null">
+        #{nonTrialClass,jdbcType=VARCHAR},
+      </if>
+      <if test="centerDiamete != null">
+        #{centerDiamete,jdbcType=DOUBLE},
+      </if>
+      <if test="centerStrength != null">
+        #{centerStrength,jdbcType=VARCHAR},
+      </if>
+      <if test="temperature != null">
+        #{temperature,jdbcType=VARCHAR},
+      </if>
+      <if test="testStandard != null">
+        #{testStandard,jdbcType=VARCHAR},
+      </if>
+      <if test="recorderNumber != null">
+        #{recorderNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="state != null">
+        #{state,jdbcType=CHAR},
+      </if>
+      <if test="evaluation != null">
+        #{evaluation,jdbcType=VARCHAR},
+      </if>
+      <if test="memo != null">
+        #{memo,jdbcType=VARCHAR},
+      </if>
+      <if test="recorderMemo != null">
+        #{recorderMemo,jdbcType=VARCHAR},
+      </if>
+      <if test="judgeStandard!=null">
+      	#{judgeStandard,jdbcType=VARCHAR}
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.hbsi.domain.WireRope">
+    <!--
+      WARNING - @mbg.generated
+      This element is automatically generated by MyBatis Generator, do not modify.
+      This element was generated on Sat Sep 29 11:35:30 CST 2018.
+    -->
+    update wire_rope
+    <set>
+      <if test="enstrustmentNumber != null">
+        enstrustment_number = #{enstrustmentNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="producerNumber != null">
+        producer_number = #{producerNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="reportNumber != null">
+        report_number = #{reportNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="reportDate != null">
+        report_date = #{reportDate,jdbcType=VARCHAR},
+      </if>
+      <if test="specification != null">
+        specification = #{specification,jdbcType=VARCHAR},
+      </if>
+      <if test="structure != null">
+        structure = #{structure,jdbcType=VARCHAR},
+      </if>
+      <if test="strengthLevel != null">
+        strength_level = #{strengthLevel,jdbcType=VARCHAR},
+      </if>
+      <if test="surfaceState != null">
+        surface_state = #{surfaceState,jdbcType=VARCHAR},
+      </if>
+      <if test="twistingMethod != null">
+        twisting_method = #{twistingMethod,jdbcType=VARCHAR},
+      </if>
+      <if test="measureBreakTensile != null">
+        measure_break_tensile = #{measureBreakTensile,jdbcType=DOUBLE},
+      </if>
+      <if test="minBreakTensile != null">
+        min_break_tensile = #{minBreakTensile,jdbcType=DOUBLE},
+      </if>
+      <if test="diamete != null">
+        diamete = #{diamete,jdbcType=DOUBLE},
+      </if>
+      <if test="diameteNonRundness != null">
+        diamete_non_rundness = #{diameteNonRundness,jdbcType=DOUBLE},
+      </if>
+      <if test="stockSplitMethod != null">
+        stock_split_method = #{stockSplitMethod,jdbcType=VARCHAR},
+      </if>
+      <if test="trialClass != null">
+        trial_class = #{trialClass,jdbcType=VARCHAR},
+      </if>
+      <if test="nonTrialClass != null">
+        non_trial_class = #{nonTrialClass,jdbcType=VARCHAR},
+      </if>
+      <if test="centerDiamete != null">
+        center_diamete = #{centerDiamete,jdbcType=DOUBLE},
+      </if>
+      <if test="centerStrength != null">
+        center_strength = #{centerStrength,jdbcType=VARCHAR},
+      </if>
+      <if test="temperature != null">
+        temperature = #{temperature,jdbcType=VARCHAR},
+      </if>
+      <if test="testStandard != null">
+        test_standard = #{testStandard,jdbcType=VARCHAR},
+      </if>
+      <if test="recorderNumber != null">
+        recorder_number = #{recorderNumber,jdbcType=VARCHAR},
+      </if>
+      <if test="state != null">
+        state = #{state,jdbcType=CHAR},
+      </if>
+      <if test="evaluation != null">
+        evaluation = #{evaluation,jdbcType=VARCHAR},
+      </if>
+      <if test="memo != null">
+        memo = #{memo,jdbcType=VARCHAR},
+      </if>
+      <if test="recorderMemo != null">
+        recorder_memo = #{recorderMemo,jdbcType=VARCHAR},
+      </if>
+      <if test="sampleState != null">
+        sample_state = #{sampleState,jdbcType=VARCHAR},
+      </if>
+      <if test="judgeStandard != null">
+        judge_standard = #{judgeStandard,jdbcType=VARCHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.hbsi.domain.WireRope">
+    <!--
+      WARNING - @mbg.generated
+      This element is automatically generated by MyBatis Generator, do not modify.
+      This element was generated on Sat Sep 29 11:35:30 CST 2018.
+    -->
+    update wire_rope
+    set enstrustment_number = #{enstrustmentNumber,jdbcType=VARCHAR},
+      producer_number = #{producerNumber,jdbcType=VARCHAR},
+      report_number = #{reportNumber,jdbcType=VARCHAR},
+      report_date = #{reportDate,jdbcType=VARCHAR},
+      specification = #{specification,jdbcType=VARCHAR},
+      structure = #{structure,jdbcType=VARCHAR},
+      strength_level = #{strengthLevel,jdbcType=VARCHAR},
+      surface_state = #{surfaceState,jdbcType=VARCHAR},
+      twisting_method = #{twistingMethod,jdbcType=VARCHAR},
+      measure_break_tensile = #{measureBreakTensile,jdbcType=DOUBLE},
+      min_break_tensile = #{minBreakTensile,jdbcType=DOUBLE},
+      diamete = #{diamete,jdbcType=DOUBLE},
+      diamete_non_rundness = #{diameteNonRundness,jdbcType=DOUBLE},
+      stock_split_method = #{stockSplitMethod,jdbcType=VARCHAR},
+      trial_class = #{trialClass,jdbcType=VARCHAR},
+      non_trial_class = #{nonTrialClass,jdbcType=VARCHAR},
+      center_diamete = #{centerDiamete,jdbcType=DOUBLE},
+      center_strength = #{centerStrength,jdbcType=VARCHAR},
+      temperature = #{temperature,jdbcType=VARCHAR},
+      test_standard = #{testStandard,jdbcType=VARCHAR},
+      recorder_number = #{recorderNumber,jdbcType=VARCHAR},
+      state = #{state,jdbcType=CHAR},
+      evaluation = #{evaluation,jdbcType=VARCHAR},
+      memo = #{memo,jdbcType=VARCHAR},
+      recorder_memo = #{recorderMemo,jdbcType=VARCHAR},
+      sample_state = #{sampleState,jdbcType=VARCHAR},
+      judge_standard=#{judgeStandard,jdbcType=VARCHAR},
+      testman=#{testman,jdbcType=VARCHAR},
+      test_machine=#{testMachine,jdbcType=VARCHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <!-- 修改判定标准 -->
+  <update id="updateJudgeStandard" parameterType="com.hbsi.domain.WireRope">
+  	update wire_rope set evaluation='',memo='',measure_break_tensile=#{measureBreakTensile},
+  	min_break_tensile=#{minBreakTensile},judge_standard=#{judgeStandard} where enstrustment_number=#{enstrustmentNumber} and state='000'
+  </update>
+</mapper>

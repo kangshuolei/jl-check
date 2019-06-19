@@ -1,0 +1,77 @@
+package com.hbsi;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
+
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.Sample;
+import com.hbsi.entrustment.service.EntrustmentService;
+import com.hbsi.response.Response;
+
+/**
+ * 委托单
+ * 
+ * @author lixuyang
+ *
+ */
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes =JlCheckApplication.class)
+@WebAppConfiguration
+public class EntrustmentTest {
+	
+	@Resource
+	private EntrustmentService entrustmentService;
+	
+	/**
+	 * 添加委托单号
+	 */
+//	@Test
+	public void testSaveEntrustment() {
+		Entrustment entrustment = new Entrustment();
+		entrustment.setSampleBatch(7);
+		entrustment.setEntrustmentNumber("WG180927B007");
+		Response<Integer> response = entrustmentService.saveEntrustment(entrustment);
+		System.out.println(response);
+	}
+	
+	/**
+	 * 修改委托单号
+	 */
+//	@Test
+	public void testUpdateEntrustment() {
+		Entrustment entrustment = new Entrustment();
+		entrustment.setSampleBatch(1);
+		entrustment.setEntrustmentNumber("WG180927B001");
+		Response<Integer> response = entrustmentService.updateEntrustment(entrustment);
+		System.out.println(response);
+	}
+	
+	/**
+	 * 删除委托单号
+	 */
+//	@Test
+	public void testDeleteEntrustment() {
+		Entrustment entrustment = new Entrustment();
+		entrustment.setSampleBatch(1);
+		entrustment.setEntrustmentNumber("WG180927B001");
+		Response<Integer> response = entrustmentService.deleteEntrustment(entrustment);
+		System.out.println(response);
+	}
+	
+	/**
+	 * 查询委托单号列表
+	 */
+//	@Test
+	public void testSelectEntrustmentList() {
+		Response<List<Entrustment>> response = entrustmentService.selectEntrustmentList();
+		System.out.println(response);
+	}
+
+}

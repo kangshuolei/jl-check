@@ -1,0 +1,50 @@
+package com.hbsi.basedata.wireattributesen12385.service.impl;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.basedata.wireattributesen12385.service.wireatrributesen12385;
+import com.hbsi.dao.WireAttributesEn123852002Mapper;
+import com.hbsi.domain.WireAttributesEn123852002;
+@Service
+public class Wireatrributesen12385Impl implements wireatrributesen12385 {
+
+	@Autowired
+	private WireAttributesEn123852002Mapper wireAttributesEn123852002Mapper;
+	Logger logger = LoggerFactory.getLogger(this.getClass());
+	/**
+	 * 保存列表数据
+	 */
+	@Override
+	public Integer saveWireAtrributes(List<WireAttributesEn123852002> list) {
+		try {
+			for(WireAttributesEn123852002 wire : list) {
+				wireAttributesEn123852002Mapper.insert(wire);
+			}
+		} catch (Exception e) {
+			logger.error("查询数据到数据库出错了:{}",e);
+			return -1;
+		}
+		return 1;
+	}
+
+	/**
+	 * 删除所有数据
+	 */
+	@Override
+	public Integer deleteWireAtrributes() {
+		try {
+			wireAttributesEn123852002Mapper.deleteAll();
+			logger.debug("删除En123852002数据成功");
+		} catch (Exception e) {
+			logger.error("清空表En123852002失败，原因是:{}",e);
+			return -1;
+		}
+		return 1;
+	}
+
+}

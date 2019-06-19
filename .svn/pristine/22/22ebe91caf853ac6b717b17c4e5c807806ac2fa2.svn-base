@@ -1,0 +1,29 @@
+package com.hbsi.export.service;
+
+import java.io.FileNotFoundException;
+import java.util.List;
+import java.util.Map;
+
+import com.hbsi.response.Response;
+
+public interface BreakOrigRecordService {
+
+	/**
+	 * 拆股实验原始记录
+	 * @throws FileNotFoundException 
+	 */
+	public Response<Map<String, Object>> BreakOrigRecord(String entrustNum) throws FileNotFoundException; 
+	/**
+	 * 拆股实验的头文件信息
+	 * @param entrustNum
+	 * @return
+	 */
+	public Map<String,Object> HeadOfBreak(String entrustNum);
+	/**
+	 * 拆股实验的steelData列表信息，从steelData数据库中读取
+	 * @param entrustNum
+	 * @return
+	 */
+	public List<Map<String, Object>> SteelDataRecord(String entrustNum);
+
+}

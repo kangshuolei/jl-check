@@ -1,0 +1,428 @@
+package com.hbsi.export.service.impl;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFDataFormat;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ResourceUtils;
+
+import com.hbsi.common.utils.excel.WriteExcel;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.VersonNumberMapper;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.export.service.TestmanRecordService;
+
+@Service
+public class TestmanRecordServiceImpl implements TestmanRecordService {
+
+	private static final String EXCEL_XLS = "xls";
+	private static final String EXCEL_XLSX = "xlsx";
+	@Autowired
+	private VersonNumberMapper versonNumberMapper;
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;
+//	@Autowired
+//	private ExportExcel exportExcel;
+
+	/**
+	 * 这个方法是直接导出文件到d盘目录下，不给前端了
+	 */
+	public void ExportTestmanRecord(String entrustNum) throws IOException {
+        /**
+         * windows下的相对路径
+         */
+		String basePath = "D:"+File.separator+"测试人员记录表";
+		/**
+		 * 判定当前d盘下有没有对应的文件名，来确实是否新建一个excel文档
+		 */
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
+		String date = sdf.format(new Date());
+		String day = date.substring(6, 8);
+		String hM = date.substring(8, 12);// 格式化当前日期
+		int hMToNum = Integer.parseInt(hM);
+		// 5点45之前,用B。5点45之后，用Y
+		String time = hMToNum > 1745 ? "Y" : "B";
+		String fileName = day + time + ".xls";
+		String finalXlsxPath = basePath+File.separator+fileName;
+		// 调用getAllFileName方法，查询该路径下所有的文件名
+//		String path = "/Users/admin/Desktop/test";
+		ArrayList<String> fileNames = new ArrayList<>();
+		/**
+		 * 查找基本路径下的所有文件名
+		 */
+		getAllFileName(basePath, fileNames);
+		System.out.println(fileNames + "这里是检测是否查询得到桌面上的所有文件名字");
+		// 存储判定结果，如果存在则为true，否则false
+		Boolean b = false;
+		for (String name : fileNames) {
+			/**
+			 * 判定想要写入信息的文件名是否已经存在
+			 */
+			if (name.equals(fileName)) {
+				b = true;
+			}
+		}
+		if (b) {
+//			InputStream stream = getClass().getClassLoader().getResourceAsStream("/Users/admin/Desktop/test" + fileName);
+//			POIFSFileSystem fs = new POIFSFileSystem(stream);
+//			File file1 = new File("/Users/admin/Desktop/test/" + fileName);
+//			FileInputStream fis = new FileInputStream(file1);
+//			POIFSFileSystem fs = new POIFSFileSystem(fis);
+			// 读取excel模板
+			// 读取了模板内所有sheet内容，存储在下面sheet中，作为新的excel
+			List<Map<Integer, Object>> dataList = getRecordList(entrustNum);
+			/**
+			 * 调用writeIntoSheet方法，将list数据写入到sheet中
+			 */
+//			finalXlsxPath = "/Users/admin/Desktop/test/" + fileName;
+
+			WriteExcel.writeExcel(dataList, finalXlsxPath);
+			/**
+			 * 找到这个文件然后删除
+			 */
+		} else {
+			/**
+			 * 从templates中读取excel模板
+			 */
+//			InputStream stream = getClass().getClassLoader().getResourceAsStream("templates/testmanRecord.xls");
+			List<Map<Integer, Object>> dataList = getRecordList(entrustNum);
+			//因为finalXlsxPath路径从未变过，所以写在外面的方法中
+//			finalXlsxPath = "/Users/admin/Desktop/test/" + fileName;
+			writeExcelFirstTime(dataList,finalXlsxPath);
+		}
+	}
+
+	/**
+	 * 导出Json格式数据
+	 * 
+	 * @param entrustNum
+	 * @return
+	 */
+	public List<Map<Integer, Object>> getRecordList(String entrustNum) {
+
+		List<Map<Integer, Object>> mapList = new ArrayList<Map<Integer, Object>>();
+		List<SteelWireData> list = steelWireDataMapper.selectByEnNum(entrustNum);
+		for (int i = 0; i < list.size(); i++) {
+			DecimalFormat df1 = new DecimalFormat("#.00");
+			DecimalFormat df2= new DecimalFormat("#.000");
+			SteelWireData steelWiredata = list.get(i);
+			Map<Integer, Object> map = new LinkedHashMap<>();
+			// 这个序号应该是生产序号：白1头
+			/**
+			 * 数据库中存储的属性，Varchar类型的默认值都定义成“”，其他类型必须进行判定是否为null
+			 */
+			if (steelWiredata.getProductionNumber() == null) {
+				map.put(0, "");
+			} else {
+				map.put(0, steelWiredata.getProductionNumber());
+			}
+			if (steelWiredata.getpDiamete() == null) {
+				map.put(1, "");
+			} else {
+				map.put(1, df1.format(steelWiredata.getpDiamete()).toString());
+			}
+			if (steelWiredata.getfDiamete() == null) {
+				map.put(2, "");
+			} else {
+				map.put(2, df1.format(steelWiredata.getfDiamete()).toString());
+			}
+			if (steelWiredata.getStrengthLevel() == null) {
+				map.put(3, "");
+			} else {
+				map.put(3, Integer.parseInt(steelWiredata.getStrengthLevel()));
+			}
+			if (steelWiredata.getUse() == null) {
+				map.put(4, "");
+			} else {
+				map.put(4, steelWiredata.getUse());
+			}
+			map.put(5, steelWiredata.getSurface());
+			if (steelWiredata.getBreakTensile() == null) {
+				map.put(6, "");
+			} else {
+				map.put(6, df2.format(steelWiredata.getBreakTensile()).toString());
+			}
+			if (steelWiredata.getTensileStrength() == null) {
+				map.put(7, "");
+			} else {
+				map.put(7, steelWiredata.getTensileStrength());
+			}
+			if (steelWiredata.getKnotTension() == null) {
+				map.put(8, "");
+			} else {
+				map.put(8, steelWiredata.getKnotTension());
+			}
+			if (steelWiredata.getKnotRate() == null) {
+				map.put(9, "");
+			} else {
+				map.put(9, steelWiredata.getKnotRate());
+			}
+			if (steelWiredata.getTorsionTimes() == null) {
+				map.put(10, "");
+			} else {
+				map.put(10, steelWiredata.getTorsionTimes());
+			}
+			if (steelWiredata.getBendingTimes() == null) {
+				map.put(11, "");
+			} else {
+				map.put(11, steelWiredata.getBendingTimes());
+			}
+			if (steelWiredata.getSteelLength() == null) {
+				map.put(12, "");
+			} else {
+				map.put(12, steelWiredata.getSteelLength());
+			}
+			map.put(13, steelWiredata.getJudge());
+			if (steelWiredata.getBoard() == null) {
+				map.put(14, "");
+			} else {
+				map.put(14, steelWiredata.getBoard());
+			}
+			if (steelWiredata.getWheelNumber() == null) {
+				map.put(15, "");
+			} else {
+				map.put(15, steelWiredata.getWheelNumber());
+			}
+			if (steelWiredata.getGradeSteel() == null) {
+				map.put(16, "");
+			} else {
+				map.put(16, steelWiredata.getGradeSteel());
+			}
+			if (steelWiredata.getProducer() == null) {
+				map.put(17, "");
+			} else {
+				map.put(17, steelWiredata.getProducer());
+			}
+			/**
+			 * 记录号应有的样式为：批次号+第几根钢丝
+			 */
+			String sampleBatch = entrustNum.substring(entrustNum.length() - 3);
+			DecimalFormat df = new DecimalFormat("000");
+			String steelNum = df.format(i + 1);
+			map.put(18, sampleBatch + "-" + steelNum);
+			if (steelWiredata.getMemo() == null) {
+				map.put(19, "");
+			} else {
+				map.put(19, steelWiredata.getMemo());
+			}
+			mapList.add(map);
+		}
+		return mapList;
+
+	}
+
+	/**
+	 * 该方法是获取path路径下的所有文件名,该方法为简易方法
+	 * 
+	 * @param path
+	 * @return
+	 */
+//	public String[] getFileNames(String path){
+//		File file = new File(path);
+//		String[] fileNames = file.list();
+//		return fileNames;
+//		}
+//	}
+	/**
+	 * 这个方法非常讲究啊，递归算法查找当前目录下的所有文件名，包括子文件夹的
+	 * 
+	 * @param path
+	 * @param fileName
+	 */
+	public void getAllFileName(String path, ArrayList<String> fileName) {
+		File file = new File(path);
+		File[] files = file.listFiles();
+		String[] names = file.list();
+		if (names != null) {
+			fileName.addAll(Arrays.asList(names));
+		}
+		for (File a : files) {
+			if (a.isDirectory()) {
+				getAllFileName(a.getAbsolutePath(), fileName);
+			}
+		}
+	}
+	
+
+	public void writeExcelFirstTime(List<Map<Integer, Object>> dataList, String finalXlsxPath) {
+		OutputStream out = null;
+		try {
+			// 读取Excel文档
+//			File finalXlsxFile = new File(finalXlsxPath);
+//			Workbook workBook = getWorkbok(finalXlsxFile);
+			InputStream stream = getClass().getClassLoader().getResourceAsStream("templates/testmanRecord.xls");
+			POIFSFileSystem fs = new POIFSFileSystem(stream);
+			Workbook workBook = new HSSFWorkbook(fs);
+			// sheet 对应一个工作页
+			HSSFSheet sheet = (HSSFSheet) workBook.getSheetAt(0);
+			/**
+			 * 设置一下版本号
+			 */
+			HSSFCell versonNumberCell = sheet.getRow(1).getCell(18);
+			versonNumberCell.setCellValue(versonNumberMapper.selectByReportCategory("检测员记录表").getVersonNumber().toString());
+			/**
+			 * 读取的最大行数，总是有空行，所以这么搞一搞，删除空行
+			 */
+			List<Integer> realNumberOfRow = WriteExcel.realNumberOfRow(sheet);
+			int realNum = realNumberOfRow.indexOf(realNumberOfRow.size()-1);
+			realNum++;
+//			int rowNumber = sheet.getLastRowNum(); // 第一行从0开始算
+//			System.out.println("原始数据总行数，除属性列：" + rowNumber);
+//			for (int i = 0; i <= rowNumber; i++) {
+//				Row row = sheet.getRow(rowNumber - i);
+//				System.out.println(row.getCell(1).toString());
+//				if (row == null) {
+//					sheet.removeRow(row);
+//					rowNumber--;
+//				}
+//			}
+			// 创建文件输出流，输出电子表格：这个必须有，否则你在sheet上做的任何操作都不会有效
+			out = new FileOutputStream(finalXlsxPath);
+			workBook.write(out);
+			/**
+			 * 往Excel中写新数据
+			 */
+			for (int j = 0; j < dataList.size(); j++) {
+				// 创建一行：从第二行开始，跳过属性列
+				Row row = sheet.createRow(j + realNum);
+				Map<Integer, Object> map = dataList.get(j);
+				Set<Integer> keys = map.keySet();
+//				CellStyle style = workBook.createCellStyle();
+				/**
+				 * 这是格式设置3.10版本的过时写法
+				 */
+//				style.setAlignment(CellStyle.ALIGN_CENTER);
+//				style.setBorderRight(CellStyle.BORDER_THIN);
+//				style.setVerticalAlignment(CellStyle.VERTICAL_CENTER);
+//				style.setBorderLeft(CellStyle.BORDER_THIN);
+//				style.setBorderTop(CellStyle.BORDER_THIN);
+//				style.setBorderBottom(CellStyle.BORDER_THIN);
+//				/**
+//				 * 新的设置格式的时髦写法为
+//				 */
+////				居中
+//				style.setAlignment(HorizontalAlignment.CENTER);//水平居中 
+//				style.setVerticalAlignment(VerticalAlignment.CENTER);//垂直居中
+////				加边框
+//				style.setBorderBottom(BorderStyle.THIN);//下边框 
+//				style.setBorderLeft(BorderStyle.THIN);//左边框 
+//				style.setBorderRight(BorderStyle.THIN);//右边框 
+//				style.setBorderTop(BorderStyle.THIN); //上边框
+//				style.setRightBorderColor(IndexedColors.BLACK.getIndex());
+//				style.setLeftBorderColor(IndexedColors.BLACK.getIndex());
+//				style.setTopBorderColor(IndexedColors.BLACK.getIndex());
+//				style.setBottomBorderColor(IndexedColors.BLACK.getIndex());
+				for (int k = 0; k < keys.size(); k++) {
+					/**
+					 * 新建单元格，设置格式
+					 */
+					Cell cell = sheet.getRow(j + realNum).createCell(k);
+//					cell.setCellStyle(style);
+					/**
+					 * 用val存储map中一条数据，验证格式，存进excel中
+					 */
+					Object val = map.get(k);
+					/**
+					 * 根据val的不同类型，直接存储到excel中，因为excel可以识别数据类型
+					 */
+					if (val == null) {
+						cell.setCellValue("");
+					} else if (val instanceof String) {
+						cell.setCellValue((String) val);
+					} else if (val instanceof Integer) {
+						cell.setCellValue((Integer) val);
+					} else if (val instanceof Long) {
+						cell.setCellValue((Long) val);
+					} else if (val instanceof Double) {
+						cell.setCellValue((Double) val);
+					} else if (val instanceof Float) {
+						cell.setCellValue((Float) val);
+					} else if (val instanceof Date) {
+						DataFormat format = workBook.createDataFormat();
+//						style.setDataFormat(format.getFormat("yyyy/MM/dd"));
+						cell.setCellValue((Date) val);
+					} else if (val instanceof BigDecimal) {
+						double doubleVal = ((BigDecimal) val).doubleValue();
+						DataFormat format = workBook.createDataFormat();
+//						style.setDataFormat(format.getFormat("￥#,##0.00"));
+						cell.setCellValue(doubleVal);
+					} else {
+						cell.setCellValue(val.toString());
+					}
+				}
+			}
+			// 创建文件输出流，准备输出电子表格：这个必须有，否则你在sheet上做的任何操作都不会有效
+			out = new FileOutputStream(finalXlsxPath);
+			workBook.write(out);
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (out != null) {
+					out.flush();
+					out.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		System.out.println("数据导出成功");
+	}
+
+	/**
+	 * 判断Excel的版本,获取Workbook
+	 * 
+	 * @param in
+	 * @param filename
+	 * @return
+	 * @throws IOException
+	 */
+	public static Workbook getWorkbok(File file) throws IOException {
+		Workbook wb = null;
+		FileInputStream in = new FileInputStream(file);
+		if (file.getName().endsWith(EXCEL_XLS)) { // Excel 2003
+			wb = new HSSFWorkbook(in);
+		} else if (file.getName().endsWith(EXCEL_XLSX)) { // Excel 2007/2010
+			wb = new XSSFWorkbook(in);
+		}
+		return wb;
+	}
+
+}

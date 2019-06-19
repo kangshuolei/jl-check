@@ -1,0 +1,55 @@
+package com.hbsi.sample.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.response.Response;
+import com.hbsi.sample.service.SampleRecordService;
+
+/**
+ * 试样数据管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+@RestController
+@RequestMapping("/sample")
+public class SampleRecordController {
+	
+	@Autowired
+	private SampleRecordService sampleRecordService;//试验记录
+	
+	/**
+	 * 查询试验记录
+	 * @return
+	 */
+	@PostMapping("/selectSampleRecordList")
+	public Response<List<SampleRecord>> selectSampleRecordList(@RequestBody SampleRecord sd){
+		return sampleRecordService.selectSampleRecordList(sd);
+	}
+	
+	/**
+	 * 错误处理列表
+	 * @param sd
+	 * @return
+	 */
+	@PostMapping("/selectSampleErrorList")
+	public Response<List<SampleRecord>> selectSampleErrorList(@RequestBody SampleRecord sd){
+		return sampleRecordService.selectSampleErrorList(sd);
+	}
+	
+	/**
+	 * 删除错误数据
+	 * @param info
+	 * @return
+	 */
+	public Response<Integer> deleteSampleError(@RequestBody String info){
+		return sampleRecordService.deleteSampleError(info);
+	}
+}

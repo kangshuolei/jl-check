@@ -1,0 +1,69 @@
+package com.hbsi;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
+
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.response.Response;
+import com.hbsi.sample.service.SampleRecordService;
+
+/**
+ * 试验数据管理
+ * 
+ * @author lixuyang
+ *
+ */
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes =JlCheckApplication.class)
+@WebAppConfiguration
+public class SampleRecordTest {
+	
+	@Resource
+	private SampleRecordService sampleRecordService;
+	
+	/**
+	 * 查询试验记录
+	 */
+//	@Test
+	public void testSelectSampleRecordList() {
+		SampleRecord sd = new SampleRecord();
+		sd.setEntrustmentNumber("WG180927B004");
+//		sd.setType("弯曲");
+//		sd.setMachineType("WJJ-6C");
+		Response<List<SampleRecord>> response = sampleRecordService.selectSampleRecordList(sd);
+		System.out.println(response);
+	}
+	
+	/**
+	 * 查询错误处理列表
+	 */
+	@Test
+	public void testSelectSampleErrorList() {
+		SampleRecord sd = new SampleRecord();
+		sd.setSampleBatch(2);
+//		sd.setType("弯曲");
+//		sd.setMachineType("WJJ-6C");
+		Response<List<SampleRecord>> response = sampleRecordService.selectSampleErrorList(sd);
+		System.out.println(response);
+	}
+	
+	/**
+	 * 删除错误数据
+	 */
+//	@Test
+	public void testDeleteSampleError() {
+		JSONObject json = new JSONObject();
+		json.put("id", 1);
+		Response<Integer> response = sampleRecordService.deleteSampleError(json.toJSONString());
+		System.out.println(response);
+	}
+
+}

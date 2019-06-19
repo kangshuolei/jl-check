@@ -1,0 +1,13 @@
+package com.hbsi.user.service;
+
+import com.hbsi.domain.User;
+import com.hbsi.response.Response;
+
+public interface UserService {
+	/**
+	 * @description 添加用户  add user
+	 * @param user
+	 * @return
+	 */
+	Response<User> saveUser(User user);
+}

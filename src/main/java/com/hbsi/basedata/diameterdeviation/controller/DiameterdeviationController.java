@@ -1,0 +1,59 @@
+package com.hbsi.basedata.diameterdeviation.controller;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.hbsi.basedata.diameterdeviation.service.DiameterDeviationService;
+import com.hbsi.basedata.fromvalue.service.FromValueService;
+import com.hbsi.common.utils.BaseDataImportUtil;
+import com.hbsi.domain.DiameterDeviation;
+import com.hbsi.domain.FromValue;
+import com.hbsi.response.Response;
+@RestController
+@RequestMapping("/diameterdeviation")
+public class DiameterdeviationController {
+
+	@Autowired
+	private DiameterDeviationService diameterDeviationService;
+	@Autowired
+	static BaseDataImportUtil baseDataImportUtil;
+	
+	@PostMapping("/save")
+	public Response<Integer> saveDiameterDeviation() throws InvalidFormatException, IOException{
+		
+//		String path="/Users/admin/Desktop/GBT 20118-2017.xlsx";
+//		String path="/Users/admin/Desktop/GB8918-2006.xls";
+		String path = "/Users/admin/Desktop/EN12385-4-2002.xls";
+		List<DiameterDeviation> list= BaseDataImportUtil.importDiameterDeviation(path);
+        return diameterDeviationService.saveDiameterDeviation(list);
+		
+	}
+	@PostMapping("/savesingle")
+	public Response<Integer> saveSingleDiameterDeviation(@RequestBody DiameterDeviation diameterDeviation) {
+        return diameterDeviationService.saveSingleDiameterDeviation(diameterDeviation);
+	}
+	@PostMapping("/update")
+	public Response<Integer> updateDiameterDeviation(@RequestBody DiameterDeviation diameterDeviation) {
+        return diameterDeviationService.updateDiameterDeviation(diameterDeviation);
+	}
+	@PostMapping("/select")
+	public Response<List<DiameterDeviation>> selectDiameterDeviation() {
+        return diameterDeviationService.selectDiameterDeviation();
+	}
+	@PostMapping("/deleteall")
+	public Response<Integer> deleteAllData() {
+        return diameterDeviationService.deleteAllData();
+	}
+	@PostMapping("/delete")
+	public Response<Integer> deleteFromValue(@RequestBody Integer id) {
+        return diameterDeviationService.deleteDiameterDeviation(id);
+	}
+}

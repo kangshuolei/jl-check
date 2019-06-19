@@ -1,0 +1,101 @@
+package com.hbsi.sample.service.impl;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.dao.SampleRecordMapper;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.sample.service.SampleRecordService;
+
+/**
+ * 试验数据管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+@Service
+public class SampleRecordServiceImpl implements SampleRecordService{
+	
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+	
+	@Autowired
+	private SampleRecordMapper sampleRecordMapper;//试样
+
+	/**
+	 * 查询试验记录
+	 * @param sd
+	 * @return
+	 */
+	@Override
+	public Response<List<SampleRecord>> selectSampleRecordList(SampleRecord sd) {
+		if(sd.getEntrustmentNumber() == null || "".equals(sd.getEntrustmentNumber())) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00005290", "委托单号不能为空", null);
+		}
+		List<SampleRecord> srList = null;
+		try {
+			srList = sampleRecordMapper.selectSampleRecordList(sd);
+			logger.info("根据sd:{}查询试验记录,结果：{}", sd, srList);
+		} catch (Exception e) {
+			logger.error("查询试验记录信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.SAMPLE_RECORD_SELECT_FAILED);
+		}
+		return new Response<>(srList);
+	}
+
+	/**
+	 * 错误处理列表
+	 * @param sd
+	 * @return
+	 */
+	@Override
+	public Response<List<SampleRecord>> selectSampleErrorList(SampleRecord sd) {
+		if(sd.getSampleBatch() == null || sd.getSampleBatch() == 0) {
+			logger.info("试验批次不能为空");
+			return new Response<>("00005290", "试验批次不能为空", null);
+		}
+		List<SampleRecord> srList = null;
+		try {
+			srList = sampleRecordMapper.selectSampleErrorList(sd);
+			logger.info("根据sd:{}查询错误处理列表,结果：{}", sd, srList);
+		} catch (Exception e) {
+			logger.error("查询错误处理列表信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.SAMPLE_ERROR_SELECT_FAILED);
+		}
+		return new Response<>(srList);
+	}
+
+	/**
+	 * 删除错误数据
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<Integer> deleteSampleError(String info) {
+		JSONObject json = JSON.parseObject(info);
+		Integer id = json.getInteger("id");
+		if(id ==null || id==0) {
+			logger.info("id不能为空");
+			return new Response<>("00005290", "id不能为空", null);
+		}
+		Integer result = null;
+		try {
+			result = sampleRecordMapper.deleteSampleError(id);
+			logger.info("根据id:{}删除错误数据,结果：{}", id, result);
+		} catch (Exception e) {
+			logger.error("删除错误数据异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.SAMPLE_ERROR_DELETE_FAILED);
+		}
+		return new Response<>(result);
+	}
+
+}

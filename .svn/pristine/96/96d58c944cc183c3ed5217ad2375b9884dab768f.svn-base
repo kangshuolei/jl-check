@@ -1,0 +1,154 @@
+package com.hbsi.export.service.impl;
+
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.text.DecimalFormat;
+import java.text.Format;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.common.utils.word.MSWordTool;
+import com.hbsi.dao.EntrustmentDataMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.WireDataMapper;
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.export.service.BreakOrigRecordService;
+import com.hbsi.response.Response;
+@Service
+public class BreakOrigRecordServiceImpl implements BreakOrigRecordService{
+
+	/**
+	 * author:shazhou
+	 */
+	Logger logger= LoggerFactory.getLogger(this.getClass());
+	@Autowired
+	private  WireDataMapper wireDataMapper;
+	@Autowired
+	private WireRopeMapper wireRopeMapper;
+	@Autowired
+	private EntrustmentDataMapper entrustDataMapper;
+	@Autowired
+	private SteelWireDataMapper steelWDMapper;
+	@Override
+	public Response<Map<String,Object>> BreakOrigRecord(String entrustNum) throws FileNotFoundException {
+		FileOutputStream fos = new FileOutputStream("/Users/admin/Desktop/breakStockCreated.docx");
+		MSWordTool changer = new MSWordTool();
+		changer.setTemplate("/Users/admin/Desktop/breakoriginal.docx");
+		 Map<String, Object> map = new HashMap<String, Object>();
+		 //
+		Integer message=0;
+		Map<String,Object> table1=new HashMap<>();
+		List<Map<String,Object>> list=new ArrayList<Map<String,Object>>();
+		Map<String,Object> table3=new HashMap<>();
+		try {
+			table1=HeadOfBreak(entrustNum);
+			logger.info("report表头信息获得成功");
+		} catch (Exception e) {
+			logger.error("report表头数据获得失败原因是：{}",e);
+			throw new BaseException(ExceptionEnum.HEADOFREPORT_FAILED);
+		}
+		try {
+			list=SteelDataRecord(entrustNum);
+			message=1;
+			logger.info("report中的拆股实验数据获得成功");
+		} catch (Exception e) {
+			logger.error("report拆股实验信息获得失败，原因是：{}",e);
+			throw new BaseException(ExceptionEnum.BREAKSTOCKDATA_FAILED);
+		}
+		table3.putAll(table1);
+		table3.put("list",list);
+		 map.put("table", table3);
+		 try {
+			changer.replaceTemplete(map, fos);
+			logger.info("调用工具类生成报告成功");
+		} catch (Exception e) {
+			logger.error("调用工具类生成报告失败，原因是{}",e);
+			throw new BaseException(ExceptionEnum.USE_EXCELUTIL_FAILED);
+		}
+		 System.out.println("执行好了");
+		return new Response<Map<String,Object>>(table3);
+	
+	}
+    /**
+     * 拆股实验原始记录的头信息
+     * @param entrustNum
+     * @return
+     */
+	@Override
+	public Map<String, Object> HeadOfBreak(String entrustNum) {
+		Map<String,Object> map=new HashMap<>();
+		WireRope wireRope = wireRopeMapper.selectByEnsNum(entrustNum);
+		EntrustmentData entrustData = entrustDataMapper.selectEntrustmentData(entrustNum);
+		List<SteelWireData> steelWDList = steelWDMapper.selectByEnNum(entrustNum);
+		map.put("recordnum",wireRope.getRecorderNumber().toString());
+		System.out.println(map.get("recordnum"));
+		map.put("prostand", wireRope.getJudgeStandard().toString());
+		map.put("etursnum", entrustNum.toString().toString());
+		map.put("struct", wireRope.getStructure().toString());
+		map.put("pronum", wireRope.getProducerNumber().toString());
+		map.put("surface", wireRope.getSurfaceState().toString());
+		map.put("twistmeth", wireRope.getTwistingMethod().toString());
+		map.put("temp", wireRope.getTemperature().toString());
+		map.put("teststand", wireRope.getTestStandard().toString());
+		map.put("specif", wireRope.getSpecification().toString());
+		map.put("recordmemo",wireRope.getRecorderMemo().toString());
+		 /**
+		  * 1.recordDate 对应entrustmentData数据中的date数据
+		  * 2.proName 对应entrustmentData数据中的产品名称数据
+		  * 3.testMan 对应entrustmentData数据中的testClerkNumber数据
+		  * 4.testMachine 对应entrustmentData数据中的testMachine数据
+		  */
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+		String formatDate = df.format(entrustData.getDate());
+		System.out.println(formatDate);
+		map.put("recordate", formatDate.toString());
+		map.put("proname", entrustData.getProductName());
+		map.put("testman", entrustData.getTestClerkNumber().toString());
+		map.put("testmachine", entrustData.getTestMachine().toString());
+		return map;
+	}
+    /**
+     * 拆股实验原始记录的拆股后SteelWireData数据列表
+     * @param entrustNum
+     * @return
+     */
+	@Override
+	public List<Map<String, Object>> SteelDataRecord(String entrustNum) {
+		int i=0;
+		List<Map<String,Object>> list=new ArrayList<>();
+		Map<String,Object> map=new HashMap<>();
+		List<SteelWireData> steelWDList = steelWDMapper.selectByEnNum(entrustNum);
+		for(SteelWireData s:steelWDList) {
+			i++;
+			Format f1 = new DecimalFormat("000");
+	        System.out.println(f1.format(i));
+	        map.put("sequence", f1.format(i));
+	        map.put("ratedia", s.getnDiamete().toString());
+	        map.put("measdia", s.getfDiamete().toString());
+	        map.put("breaktens", s.getBreakTensile().toString());
+	        map.put("tenstren", s.getTensileStrength().toString());
+	        map.put("knotstren", "");
+	        map.put("knotrate","");
+	        map.put("reverse", s.getTorsionTimes().toString());
+	        map.put("bending", s.getBendingTimes().toString());
+	        map.put("twist", "");
+	        map.put("zinclayer", "");
+	        list.add(map);
+		}
+		return list;
+	}
+
+}

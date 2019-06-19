@@ -1,0 +1,226 @@
+package com.hbsi.export.service.impl;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFDataFormat;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.ResourceUtils;
+
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.export.service.TestmanRecordService;
+
+@Service
+public class TestmanRecordServiceImpl implements TestmanRecordService{
+
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;
+//	@Autowired
+//	private ExportExcel exportExcel;
+	
+	/**
+	 * 这个方法是为了导出excel数据，给前端下载
+	 */
+	public void ExportTestmanRecord(String entrustNum,HttpServletResponse response) throws IOException {
+	
+		File file = ResourceUtils.getFile("classpath:templates/testmanRecord.xls");
+		//excel模板路径  
+		File fi=new File(file.getAbsolutePath());  
+		POIFSFileSystem fs = new POIFSFileSystem(new FileInputStream(fi));  
+		//读取excel模板  
+		HSSFWorkbook wb = new HSSFWorkbook(fs);  
+		//读取了模板内所有sheet内容，存储在下面sheet中，作为新的excel 
+		HSSFSheet sheet = wb.getSheetAt(0);  
+		List<Map<Integer, Object>> list = getRecordList(entrustNum);
+       for(int i=0;i<list.size();i++) {
+    	   /**
+    	    * 设定excel中的文本格式
+    	    */
+    	   Map<Integer,Object> map=list.get(i);
+    	   Integer startRow=i+4;
+    	   sheet.shiftRows(startRow, startRow+1, 1,true,false);
+    	   sheet.createRow(startRow);
+    	   Set<Integer> keys=map.keySet();
+    	   /**
+    	    * 用val存储map中一条数据，验证格式，存进excel中
+    	    */
+    	   CellStyle style = wb.createCellStyle();
+    	   style.setAlignment(CellStyle.ALIGN_CENTER);
+    	   style.setVerticalAlignment(CellStyle.VERTICAL_CENTER);
+    	   style.setBorderRight(CellStyle.BORDER_THIN);
+    	   style.setRightBorderColor(IndexedColors.BLACK.getIndex());
+    	   style.setBorderLeft(CellStyle.BORDER_THIN);
+    	   style.setLeftBorderColor(IndexedColors.BLACK.getIndex());
+    	   style.setBorderTop(CellStyle.BORDER_THIN);
+    	   style.setTopBorderColor(IndexedColors.BLACK.getIndex());
+    	   style.setBorderBottom(CellStyle.BORDER_THIN);
+    	   style.setBottomBorderColor(IndexedColors.BLACK.getIndex());
+    	   for(int j=0;j<keys.size();j++) {
+				/**
+				 * 新建单元格，设置格式
+				 */
+				HSSFCell cell = sheet.getRow(startRow).createCell(j);
+				cell.setCellStyle(style);
+    		   Object val=map.get(j);
+    		   if (val == null){
+   				cell.setCellValue("");
+   				/**
+   				 * 根据val的不同类型，直接存储到excel中，因为excel可以识别数据类型
+   				 */
+	   			} else if (val instanceof String) {
+	   				cell.setCellValue((String) val);
+	   			} else if (val instanceof Integer) {
+	   				cell.setCellValue((Integer) val);
+	   			} else if (val instanceof Long) {
+	   				cell.setCellValue((Long) val);
+	   			} else if (val instanceof Double) {
+	   				cell.setCellValue((Double) val);
+	   			} else if (val instanceof Float) {
+	   				cell.setCellValue((Float) val);
+	   			}else {
+	   				cell.setCellValue(val.toString());
+	   			}
+    	   }
+       }
+    	   /**
+    	    * 
+    	    */
+    	   response.setContentType("application/vnd.ms-excel");
+    	   response.addHeader("Content-Disposition", "attachment;fileName=recordCreated.xls");
+    	   ServletOutputStream out=response.getOutputStream();
+    	   wb.write(out);  
+    	   out.close();
+    }
+      
+		
+	
+	/**
+	 *  导出Json格式数据
+	 * @param entrustNum
+	 * @return
+	 */
+	public List<Map<Integer,Object>> getRecordList(String entrustNum){
+		
+		List<Map<Integer,Object>> mapList=new ArrayList<Map<Integer,Object>>();
+		List<SteelWireData> list = steelWireDataMapper.selectByEnNum(entrustNum);
+		for(int i=0;i<list.size();i++ ) {
+			SteelWireData steelWiredata=list.get(i);
+			Map<Integer,Object> map=new LinkedHashMap<>();
+			map.put(0, i+1+"");
+			/**
+			 * 数据库中存储的属性，Varchar类型的默认值都定义成“”，其他类型必须进行判定是否为null
+			 */
+			if(steelWiredata.getpDiamete()==null) {
+				map.put(1,"");
+			}else {
+				map.put(1,steelWiredata.getpDiamete());
+			}
+			if(steelWiredata.getfDiamete()==null) {
+				map.put(2, "");
+			}else {
+				map.put(2, steelWiredata.getfDiamete());
+			}
+			if(steelWiredata.getStrengthLevel()==null) {
+				map.put(3, "");
+			}else {
+				map.put(3, steelWiredata.getStrengthLevel());
+			}
+			if(steelWiredata.getUse()==null) {
+				map.put(4, "");
+			}else {
+				map.put(4, steelWiredata.getUse());
+			}
+			map.put(5, steelWiredata.getSurface());
+			if(steelWiredata.getBreakTensile()==null) {
+				map.put(6, "");
+			}else {
+				map.put(6, steelWiredata.getBreakTensile());
+			}
+			if(steelWiredata.getTensileStrength()==null) {
+				map.put(7, "");
+			}else {
+				map.put(7, steelWiredata.getTensileStrength());
+			}
+			if(steelWiredata.getKnotTension()==null) {
+				map.put(8, "");
+			}else {
+				map.put(8, steelWiredata.getKnotTension());
+			}
+			if(steelWiredata.getKnotRate()==null) {
+				map.put(9, "");
+			}else {
+				map.put(9, steelWiredata.getKnotRate());
+			}
+			if(steelWiredata.getTorsionTimes()==null) {
+				map.put(10, "");
+			}else {
+				map.put(10, steelWiredata.getTorsionTimes());
+			}
+			if(steelWiredata.getBendingTimes()==null) {
+				map.put(11, "");
+			}else {
+				map.put(11, steelWiredata.getBendingTimes());
+			}
+			if(steelWiredata.getSteelLength()==null) {
+				map.put(12, "");
+			}else {
+				map.put(12, steelWiredata.getSteelLength());
+			}
+			map.put(13, steelWiredata.getJudge());
+			if(steelWiredata.getBoard()==null) {
+				map.put(14, "");
+			}else {
+				map.put(14, steelWiredata.getBoard());
+			}
+			if(steelWiredata.getWheelNumber()==null) {
+				map.put(15, "");
+			}else {
+				map.put(15, steelWiredata.getWheelNumber());
+			}
+			if(steelWiredata.getGradeSteel()==null) {
+				map.put(16, "");
+			}else {
+				map.put(16, steelWiredata.getGradeSteel());
+			}
+			if(steelWiredata.getProducer()==null) {
+				map.put(17, "");
+			}else {
+				map.put(17, steelWiredata.getProducer());
+			}
+			if(steelWiredata.getRecorderNumber()==null) {
+				map.put(18, "");
+			}else {
+				map.put(18, steelWiredata.getRecorderNumber());
+			}
+			if(steelWiredata.getMemo()==null) {
+				map.put(19, "");
+			}else {
+				map.put(19, steelWiredata.getMemo());
+			}
+			mapList.add(map);
+		}
+		return mapList;
+		
+	}
+}

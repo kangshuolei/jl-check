@@ -1,0 +1,48 @@
+package com.hbsi.entrustment.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.entrustment.service.SaveEntrustmenService;
+import com.hbsi.response.Response;
+
+@RestController
+@RequestMapping("/createEntrustment")
+public class CreateNewEntrustment {
+
+	@Autowired
+	private SaveEntrustmenService saveEntrustmentService;
+	/**
+	 * 想办法搞到一个新的批次号给前端传过去
+	 * @return
+	 */
+	@RequestMapping("/createNewBatch")
+	public Response<Integer> createNewBatch(){
+		return saveEntrustmentService.saveNewBatch();
+	}
+	/**
+	 * 把批次号跟对应的委托单号接收，保存到委托单号表中去
+	 * @param entrustment
+	 * @return
+	 */
+	@PostMapping("/saveEntrustment")
+	public Response saveEntrustment(@RequestBody Entrustment entrustment){
+		return saveEntrustmentService.saveEntrustment(entrustment);
+	}
+	/**
+	 * 委托单号表中的所有信息，倒序排列，给前端传过去
+	 * @return
+	 */
+	@RequestMapping("/getEntrustmentList")
+	public Response<List<Entrustment>> getEntrustmentList(){
+		return saveEntrustmentService.selectEntrustmentList();
+	}
+}

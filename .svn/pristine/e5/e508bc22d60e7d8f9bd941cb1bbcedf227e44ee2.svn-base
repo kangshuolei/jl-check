@@ -1,0 +1,94 @@
+package com.hbsi.entrustment.service.impl;
+
+import java.util.Date;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.dao.EntrustmentDataMapper;
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.entrustment.service.EntrustmentDataService;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+
+/**
+ * 委托单管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+@Service
+public class EntrustmentDataServiceImpl implements EntrustmentDataService{
+	
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+	
+	@Autowired
+	private EntrustmentDataMapper entrustmentDataMapper;//委托单数据
+
+	/**
+	 * 查询或新建委托单报告
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<EntrustmentData> selectOrSaveEntrustmentData(String info) {
+		JSONObject json = JSON.parseObject(info);
+		String entrustmentNumber = json.getString("entrustmentNumber");// 委托号
+		if(entrustmentNumber==null || "".equals(entrustmentNumber)) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00007290", "委托单号不能为空", null);
+		}
+		EntrustmentData ed = null;
+		try {
+			// 查询是否已存在委托单
+			ed = entrustmentDataMapper.selectEntrustmentData(entrustmentNumber);
+			logger.info("根据entrustmentNumber:{}查询委托单,结果：{}", entrustmentNumber, ed);
+			if (ed == null) {
+				// 不存在则新建委托单
+				EntrustmentData entData = new EntrustmentData();
+				entData.setEntrustmentNumber(entrustmentNumber);// 委托单
+				entData.setDate(new Date());// 日期
+				Integer result = entrustmentDataMapper.insert(entData);
+				logger.info("根据用户传入委托单信息:{}添加委托单信息,结果：{}", entData, result);
+				if (result == 1) {
+					return new Response<>(entData);
+				}
+			}
+		} catch (Exception e) {
+			logger.error("查询或添加委托单信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_DATA_SELECT_FAILED);
+		}
+		return new Response<>(ed);
+	}
+
+	/**
+	 * 添加委托单数据
+	 * @param ed
+	 * @return
+	 */
+	@Override
+	public Response<Integer> saveEntrustmentData(EntrustmentData ed) {
+		if(ed.getEntrustmentNumber()==null || "".equals(ed.getEntrustmentNumber())) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00007290", "委托单号不能为空", null);
+		}
+		if(ed.getSteelNumber() == null || ed.getSteelNumber() == 0) {
+			logger.info("钢丝根数不能为空");
+			return new Response<>("00007291", "钢丝根数不能为空", null);
+		}
+		Integer result = null;
+		try {
+			result = entrustmentDataMapper.updateByPrimaryKeySelective(ed);
+			logger.info("根据用户传入委托单信息:{}添加委托单信息,结果：{}", ed, result);
+		} catch (Exception e) {
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_DATA_SAVE_FAILED);
+		}
+		return new Response<>(result);
+	}
+	
+}

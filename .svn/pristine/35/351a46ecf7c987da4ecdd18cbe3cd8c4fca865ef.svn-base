@@ -1,0 +1,7 @@
+package com.hbsi.wire.service.impl;
+
+import com.hbsi.wire.service.WireRopeServiceAPI9A2011;
+
+public class WireRopeServiceImplAPI9A2011 implements WireRopeServiceAPI9A2011{
+
+}

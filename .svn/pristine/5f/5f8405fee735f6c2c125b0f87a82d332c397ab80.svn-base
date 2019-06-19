@@ -1,0 +1,284 @@
+package com.hbsi.entrustment.service.impl;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.dao.EntrustmentDataMapper;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.VersonNumberMapper;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.domain.VersonNumber;
+import com.hbsi.entrustment.service.EntrustmentDataService;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+
+/**
+ * 委托单管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+@Service
+public class EntrustmentDataServiceImpl implements EntrustmentDataService{
+	
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+	
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;//委托单
+	@Autowired
+	private EntrustmentDataMapper entrustmentDataMapper;//委托单数据
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;//钢丝数据
+	
+	@Autowired
+	private VersonNumberMapper versonNumberMapper;//版本号
+	
+	/**
+	 * 模糊查询委托单数据
+	 * @param info
+	 * @return
+	 */
+	@Transactional
+	@Override
+	public Response<List<EntrustmentData>> selectEntData(String info) {
+		JSONObject json = JSON.parseObject(info);
+		String entrustmentNumber = json.getString("entrustmentNumber");// 委托号
+		if(entrustmentNumber==null || "".equals(entrustmentNumber)) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00007290", "委托单号不能为空", null);
+		}
+		List<EntrustmentData> edList = null;
+		try {
+			edList = entrustmentDataMapper.selectEntsData(entrustmentNumber);
+			logger.info("根据entrustmentNumber:{}查询委托单数据,结果：{}条数据", entrustmentNumber, edList.size());
+		} catch (Exception e) {
+			logger.error("模糊查询委托单数据信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_SELECT_FAILED);
+		}
+		return new Response<>(edList);
+	}
+
+	/**
+	 * 查询或新建委托单报告
+	 * @param info
+	 * @return
+	 */
+	@Transactional
+	@Override
+	public Response<EntrustmentData> selectOrSaveEntData(String info) {
+		JSONObject json = JSON.parseObject(info);
+		String entNumber = json.getString("entrustmentNumber");// 委托号
+		if(entNumber==null || "".equals(entNumber)) {
+			logger.info("委托单号不能为空");
+			return new Response<>("00007290", "委托单号不能为空", null);
+		}
+		EntrustmentData ed = null;
+		try {
+			// 查询委托单数据表，存在则显示信息
+			ed = entrustmentDataMapper.selectEntrustmentData(entNumber);
+			logger.info("根据entNumber:{}查询委托单,结果：{}", entNumber, ed);
+			// 查询钢丝数据表，存在则显示信息 
+			List<SteelWireData> list = steelWireDataMapper.selectByEnNum(entNumber);
+			logger.info("根据entNumber:{}查询委托单,结果：{}条数据", entNumber, list.size());
+			if (ed == null) {
+				// 不存在，查询委托单表，若输入的委托单号不在委托单表中，则提示委托单号不存在，若存在，则新建委托单
+				Entrustment ee = entrustmentMapper.selectEntrustmentNumber(entNumber);
+				if(ee == null) {
+					logger.info("委托单号不存在");
+					return new Response<>("00007290", "委托单号不存在", null);
+				}else {
+					EntrustmentData entData = new EntrustmentData();
+					entData.setEntrustmentNumber(entNumber);// 委托单
+					entData.setDate(new Date());// 日期
+					Integer result = entrustmentDataMapper.insert(entData);
+					logger.info("根据用户传入委托单信息:{}添加委托单信息,结果：{}", entData, result);
+					if (result == 1) {
+						return new Response<>(entData);
+					}
+				}
+			}
+			//添加钢丝数据到返回结果
+			ed.setSteelWireDataList(list);
+		} catch (Exception e) {
+			logger.error("查询或添加委托单信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_DATA_SELECT_FAILED);
+		}
+		return new Response<>(ed);
+	}
+
+	/**
+	 * 提交按钮
+	 * @param ed
+	 * @return
+	 */
+	@Transactional
+	@Override
+	public Response<Integer> saveEntDataAndSteelData(String info) {
+		JSONObject json = JSON.parseObject(info);
+		String entrustmentNum = json.getString("entrustmentNumber");//委托单号
+		String reviewer = json.getString("reviewer");//审核人（报告编制）
+		Integer steelNumber = json.getInteger("steelNumber");//钢丝根数
+		String testClerkNumber = json.getString("testClerkNumber");//试验员编号
+		String testMachine = json.getString("testMachine");//试验机编号
+		//钢丝数据List
+		List<SteelWireData> list = new ArrayList<>();
+		JSONArray array = json.getJSONArray("steelWireDataList");//钢丝数据列表
+		for(int i = 0; i < array.size(); i++) {
+			JSONObject object =array.getJSONObject(i);
+			SteelWireData s = new SteelWireData();
+			s.setId(object.getInteger("id"));
+			if(s.getId()==null||s.getId()==0) {
+				logger.info("id为空");
+				return new Response<>("00007290", "id为空", null);
+			}
+//			s.setEntrustmentNumber(entrustmentNum);
+			s.setProductionNumber(object.getString("productionNumber"));//生产序号
+			s.setpDiamete(object.getDouble("pDiamete"));//原直径
+			s.setfDiamete(object.getDouble("fDiamete"));//成品直径
+//			System.out.println(object.getDouble("fDiamete")+"------------");
+			s.setStrengthLevel(object.getString("strengthLevel"));//强度级别
+			s.setUse(object.getString("use").toUpperCase());//用途（小写转大写）
+			s.setSurface(object.getString("surface").toUpperCase());//表面状态（小写转大写）
+			s.setSteelLength(object.getInteger("steelLength"));//长度
+			s.setBoard(object.getString("board"));//机台
+			s.setWheelNumber(object.getString("wheelNumber"));//轮号
+			s.setGradeSteel(object.getString("gradeSteel"));//钢号
+			s.setProducer(object.getString("producer"));//生产者
+			s.setMemo(object.getString("memo"));//备注
+			s.setBendingTimes(object.getInteger("bendingTimes"));//弯曲次数（新增）可修改
+			
+//			if(s.getfDiamete1()==null||s.getfDiamete1()==0) {
+//				logger.info("成品直径为空");
+//				return new Response<>("00007290", "成品直径为空", null);
+//			}
+//			if(s.getStrengthLevel()==null||"".equals(s.getStrengthLevel())) {
+//				logger.info("强度级别为空");
+//				return new Response<>("00007290", "强度级别为空", null);
+//			}
+//			if(s.getUse()==null||"".equals(s.getUse())) {
+//				logger.info("用途为空");
+//				return new Response<>("00007290", "用途为空", null);
+//			}
+//			if(s.getSurface()==null||"".equals(s.getSurface())) {
+//				logger.info("表面状态为空");
+//				return new Response<>("00007290", "表面状态为空", null);
+//			}
+			list.add(s);
+			System.out.println(s+"--------");
+		}
+		String message= verifyData(entrustmentNum, reviewer, steelNumber, testClerkNumber, testMachine, list);
+		if(message != null) {
+			logger.info("验证数据信息，验证结果:{}", message);
+			return new Response<>("00007290", message, null);
+		}
+		Integer result = null;
+		try {
+			EntrustmentData ed = new EntrustmentData();
+			ed.setEntrustmentNumber(entrustmentNum);
+			ed.setReviewer(reviewer);
+			ed.setSteelNumber(steelNumber);
+			ed.setTestClerkNumber(testClerkNumber);
+			ed.setTestMachine(testMachine);
+			//提交委托单数据
+			Integer r = entrustmentDataMapper.updateByPrimaryKeySelective(ed);
+			logger.info("根据用户传入委托单信息:{}保存委托单信息,结果：{}", ed, r);
+			if(r==1) {
+				//提交判定结果
+				result = steelWireDataMapper.updateByPrimaryKeySelective(list);
+				logger.info("根据用户传入钢丝信息:{}保存钢丝数据信息,结果：{}", list.size(), result);
+			}
+		} catch (Exception e) {
+			logger.error("添加委托单和钢丝数据信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_DATA_SAVE_FAILED);
+		}
+		return new Response<>(result);
+	}
+	
+	/**
+	 * 验证委托单数据和钢丝数据
+	 * @param info
+	 * @return
+	 */
+	public String verifyData(String entrustmentNum, String reviewer, Integer steelNumber, String testClerkNumber, String testMachine, List<SteelWireData> list) {
+		String message = null;
+		if(entrustmentNum == null || "".equals(entrustmentNum)) {
+			return "委托单号不能为空";
+		}
+		if(reviewer == null || "".equals(reviewer)) {
+			return "报告编制不能为空";
+		}
+		if(steelNumber == null || steelNumber==0) {
+			return "钢丝根数不能为空";
+		}
+		if(testClerkNumber==null || "".equals(testClerkNumber)) {
+			return "试验员编号不能为空";
+		}
+		if(testMachine == null || "".equals(testMachine)) {
+			return "试验机编号不能为空";
+		}
+		if(list.size() == 0) {
+			return "钢丝数据不能为空";
+		}
+		return message;
+	}
+
+	/**
+	 * 查询版本号
+	 */
+	@Override
+	public Response<VersonNumber> selectVersionNum() {
+		String category = "检测员记录表";
+		VersonNumber vn = null;
+		try {
+			vn = versonNumberMapper.selectByReportCategory(category);
+			logger.info("根据category:{}查询版本号,结果：{}", category, vn);
+		} catch (Exception e) {
+			logger.error("查询版本号信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_SELECT_FAILED);
+		}
+		return new Response<>(vn);
+	}
+
+	/**
+	 * 修改版本号
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<Integer> updateVersionNum(String info) {
+		JSONObject json = JSON.parseObject(info);
+		String versionNum = json.getString("versionNum");// 版本号
+		if(versionNum==null || "".equals(versionNum)) {
+			logger.info("版本号不能为空");
+			return new Response<>("00007290", "版本号不能为空", null);
+		}
+		String category = "检测员记录表";
+		VersonNumber vn = new VersonNumber();
+		vn.setReportCategory(category);
+		vn.setVersonNumber(versionNum);
+		Integer result = null;
+		try {
+			result = versonNumberMapper.updateByPrimaryKeySelective(vn);
+			logger.info("修改版本号,结果：{}", result);
+		} catch (Exception e) {
+			logger.error("修改版本号信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_UPDATE_FAILED);
+		}
+		return new Response<>(result);
+	}
+	
+}

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hbsi.dao.SampleMapper">
+  <resultMap id="BaseResultMap" type="com.hbsi.domain.Sample">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="sample_batch" jdbcType="INTEGER" property="sampleBatch" />
+    <result column="state" jdbcType="CHAR" property="state" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, sample_batch, state
+  </sql>
+  
+  <!-- 查询所有的试样批次 -->
+  <select id="selectSampleList" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from sample
+    where state = '000'
+  </select>
+  
+  <!-- 删除试样批次，修改状态值为999 -->
+  <update id="deleteSample" parameterType="java.lang.Integer">
+    update sample
+    set state = '999'
+    where sample_batch = #{sampleBatch,jdbcType=INTEGER}
+  </update>
+  
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from sample
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from sample
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.hbsi.domain.Sample">
+    insert into sample (id, sample_batch, state
+      )
+    values (#{id,jdbcType=INTEGER}, #{sampleBatch,jdbcType=INTEGER}, #{state,jdbcType=CHAR}
+      )
+  </insert>
+  <insert id="insertSelective" parameterType="com.hbsi.domain.Sample">
+    insert into sample
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        id,
+      </if>
+      <if test="sampleBatch != null">
+        sample_batch,
+      </if>
+      <if test="state != null">
+        state,
+      </if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="id != null">
+        #{id,jdbcType=INTEGER},
+      </if>
+      <if test="sampleBatch != null">
+        #{sampleBatch,jdbcType=INTEGER},
+      </if>
+      <if test="state != null">
+        #{state,jdbcType=CHAR},
+      </if>
+    </trim>
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.hbsi.domain.Sample">
+    update sample
+    <set>
+      <if test="sampleBatch != null">
+        sample_batch = #{sampleBatch,jdbcType=INTEGER},
+      </if>
+      <if test="state != null">
+        state = #{state,jdbcType=CHAR},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <update id="updateByPrimaryKey" parameterType="com.hbsi.domain.Sample">
+    update sample
+    set sample_batch = #{sampleBatch,jdbcType=INTEGER},
+      state = #{state,jdbcType=CHAR}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

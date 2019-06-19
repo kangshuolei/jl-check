@@ -1,0 +1,58 @@
+package com.hbsi.dao;
+
+import java.util.List;
+
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.entity.WireRopeData;
+
+public interface ReverseBendingMapper {
+
+	int deleteByPrimaryKey(Integer id);
+	/**
+	 * 删除整张扭转弯曲表
+	 * @return
+	 */
+	int deleteAllData();
+
+	int insert(ReverseBending record);
+
+	int insertSelective(ReverseBending record);
+
+	ReverseBending selectByPrimaryKey(Integer id);
+
+	int updateByPrimaryKeySelective(ReverseBending record);
+
+	int updateByPrimaryKey(ReverseBending record);
+	
+	ReverseBending selectRBData(ReverseBending rb);//查询扭转或弯曲值
+	
+	ReverseBending selectRBData2(ReverseBending rb);//重新判定，查询扭转或弯曲值对应的公称强度
+	/**
+	 * 查找得到扭转弯曲表
+	 * @return
+	 */
+	List<ReverseBending> selectReverseBending();
+	/**
+	 * 根据标准号查询扭转弯曲次数
+	 * @param r
+	 * @return
+	 */
+	List<ReverseBending> selectRBDataByCon(ReverseBending r);
+	/**
+	 * 该查询方法专供标准4542，没有表面状态
+	 * @param rb
+	 * @return
+	 */
+	ReverseBending selectRBFor4542(ReverseBending rb);
+	/**
+	 * 用于MT716
+	 * @param r
+	 * @return
+	 */
+	List<ReverseBending> selectRBDataByConMT(ReverseBending r);
+	/**
+	 * 根据定义的bean类wireRopeData查找对应的扭转次数值
+	 * @param wireRopeData
+	 */
+	List<ReverseBending> selectReverseByWireRopeData(WireRopeData w);
+}

@@ -1,0 +1,369 @@
+package com.hbsi.domain;
+
+import java.io.Serializable;
+import java.text.DecimalFormat;
+
+public class SteelWireData implements Serializable {
+
+	private Integer id;
+
+	private String entrustmentNumber;
+
+	private String productionNumber;
+
+	private Double pDiamete;
+
+	private Double fDiamete;
+
+	private Double nDiamete;
+
+	private String use;
+
+	private String surface;
+
+	private Double breakTensile;
+
+	private Integer tensileStrength;
+
+	private Double knotTension;
+
+	private Double knotRate;
+
+	private Integer torsionTimes;
+
+	private Integer bendingTimes;
+
+	private Integer steelLength;
+
+	private String judge;
+
+	private String board;
+
+	private String wheelNumber;
+
+	private String gradeSteel;
+
+	private String producer;
+
+	private String recorderNumber;
+
+	private String state;
+
+	private String memo;
+
+	private Integer sampleBatch;
+	private String strengthLevel;
+	private String machineType;
+	private String machineNumber;
+
+	private static final long serialVersionUID = 1L;
+
+	public Integer getId() {
+		return id;
+	}
+
+	public void setId(Integer id) {
+		this.id = id;
+	}
+
+	public String getEntrustmentNumber() {
+		return entrustmentNumber;
+	}
+
+	public void setEntrustmentNumber(String entrustmentNumber) {
+		this.entrustmentNumber = entrustmentNumber == null ? null : entrustmentNumber.trim();
+	}
+
+	public String getProductionNumber() {
+		return productionNumber;
+	}
+
+	public void setProductionNumber(String productionNumber) {
+		this.productionNumber = productionNumber;
+	}
+
+	/**
+	 * （原直径）用于给前端返回保留小数位数
+	 * 
+	 * @return
+	 */
+	public String getpDiamete() {
+		if (pDiamete != null) {
+			DecimalFormat d = new DecimalFormat("#0.00");
+			return d.format(pDiamete);
+		} else {
+			return null;
+		}
+	}
+
+	public Double getpDiamete1() {
+		return pDiamete;
+	}
+
+	public void setpDiamete(Double pDiamete) {
+		this.pDiamete = pDiamete;
+	}
+
+	/**
+	 * （成品直径）用于给前端返回保留小数位数
+	 * 
+	 * @return
+	 */
+	public String getfDiamete() {
+		if (fDiamete != null) {
+			DecimalFormat d = new DecimalFormat("#0.00");
+			return d.format(fDiamete);
+		} else {
+			return null;
+		}
+	}
+
+	public Double getfDiamete1() {
+		return fDiamete;
+	}
+
+	public void setfDiamete(Double fDiamete) {
+		this.fDiamete = fDiamete;
+	}
+
+	public Double getnDiamete() {
+		return nDiamete;
+	}
+
+	public void setnDiamete(Double nDiamete) {
+		this.nDiamete = nDiamete;
+	}
+
+	public String getUse() {
+		return use;
+	}
+
+	public void setUse(String use) {
+		this.use = use == null ? null : use.trim();
+	}
+
+	public String getSurface() {
+		return surface;
+	}
+
+	public void setSurface(String surface) {
+		this.surface = surface == null ? null : surface.trim();
+	}
+
+	/**
+	 * （破断拉力）用于给前端返回保留小数位数
+	 * @return
+	 */
+	public String getBreakTensile() {
+    	if(breakTensile!=null) {
+    		if(this.machineType!=null&&!"".equals(this.machineType)) {
+        		if("DC-KL".equals(this.machineType)) {
+        			DecimalFormat d=new DecimalFormat("#0.00");
+        			return d.format(breakTensile);
+        		}else if("DC-L".equals(this.machineType)){
+        			DecimalFormat d=new DecimalFormat("#0.000");
+        			return d.format(breakTensile);
+        		}else {
+        			return breakTensile+"";
+        		}
+        	}else {
+        		return breakTensile+"";
+        	}
+    	}else {
+    		return null;
+    	}
+    }
+	public Double getBreakTensile1() {
+		return breakTensile;
+	}
+
+	public void setBreakTensile(Double breakTensile) {
+		this.breakTensile = breakTensile;
+	}
+
+	public Integer getTensileStrength() {
+		return tensileStrength;
+	}
+
+	public void setTensileStrength(Integer tensileStrength) {
+		this.tensileStrength = tensileStrength;
+	}
+
+	public Double getKnotTension() {
+		return knotTension;
+	}
+
+	public void setKnotTension(Double knotTension) {
+		this.knotTension = knotTension;
+	}
+
+	public Double getKnotRate() {
+		return knotRate;
+	}
+
+	public void setKnotRate(Double knotRate) {
+		this.knotRate = knotRate;
+	}
+
+	public Integer getTorsionTimes() {
+		return torsionTimes;
+	}
+
+	public void setTorsionTimes(Integer torsionTimes) {
+		this.torsionTimes = torsionTimes;
+	}
+
+	public Integer getBendingTimes() {
+		return bendingTimes;
+	}
+
+	public void setBendingTimes(Integer bendingTimes) {
+		this.bendingTimes = bendingTimes;
+	}
+
+	public Integer getSteelLength() {
+		return steelLength;
+	}
+
+	public void setSteelLength(Integer steelLength) {
+		this.steelLength = steelLength;
+	}
+
+	public String getJudge() {
+		return judge;
+	}
+
+	public void setJudge(String judge) {
+		this.judge = judge == null ? null : judge.trim();
+	}
+
+	public String getBoard() {
+		return board;
+	}
+
+	public void setBoard(String board) {
+		this.board = board;
+	}
+
+	public String getWheelNumber() {
+		return wheelNumber;
+	}
+
+	public void setWheelNumber(String wheelNumber) {
+		this.wheelNumber = wheelNumber == null ? null : wheelNumber.trim();
+	}
+
+	public String getGradeSteel() {
+		return gradeSteel;
+	}
+
+	public void setGradeSteel(String gradeSteel) {
+		this.gradeSteel = gradeSteel == null ? null : gradeSteel.trim();
+	}
+
+	public String getProducer() {
+		return producer;
+	}
+
+	public void setProducer(String producer) {
+		this.producer = producer == null ? null : producer.trim();
+	}
+
+	public String getRecorderNumber() {
+		return recorderNumber;
+	}
+
+	public void setRecorderNumber(String recorderNumber) {
+		this.recorderNumber = recorderNumber == null ? null : recorderNumber.trim();
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state == null ? null : state.trim();
+	}
+
+	public String getMemo() {
+		return memo;
+	}
+
+	public void setMemo(String memo) {
+		this.memo = memo == null ? null : memo.trim();
+	}
+
+	public Integer getSampleBatch() {
+		return sampleBatch;
+	}
+
+	public void setSampleBatch(Integer sampleBatch) {
+		this.sampleBatch = sampleBatch;
+	}
+
+	public String getStrengthLevel() {
+		return strengthLevel;
+	}
+
+	public void setStrengthLevel(String strengthLevel) {
+		this.strengthLevel = strengthLevel;
+	}
+
+	public String getMachineType() {
+		return machineType;
+	}
+
+	public void setMachineType(String machineType) {
+		this.machineType = machineType;
+	}
+
+	public String getMachineNumber() {
+		return machineNumber;
+	}
+
+	public void setMachineNumber(String machineNumber) {
+		this.machineNumber = machineNumber;
+	}
+
+	/**
+	 * This method was generated by MyBatis Generator. This method corresponds to
+	 * the database table steel_wire_data
+	 *
+	 * @mbg.generated Wed Sep 26 15:54:22 CST 2018
+	 */
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(getClass().getSimpleName());
+		sb.append(" [");
+		sb.append("Hash = ").append(hashCode());
+		sb.append(", id=").append(id);
+		sb.append(", entrustmentNumber=").append(entrustmentNumber);
+		sb.append(", productionNumber=").append(productionNumber);
+		sb.append(", pDiamete=").append(pDiamete);
+		sb.append(", fDiamete=").append(fDiamete);
+		sb.append(", nDiamete=").append(nDiamete);
+		sb.append(", use=").append(use);
+		sb.append(", surface=").append(surface);
+		sb.append(", breakTensile=").append(breakTensile);
+		sb.append(", tensileStrength=").append(tensileStrength);
+		sb.append(", knotTension=").append(knotTension);
+		sb.append(", knotRate=").append(knotRate);
+		sb.append(", torsionTimes=").append(torsionTimes);
+		sb.append(", bendingTimes=").append(bendingTimes);
+		sb.append(", steelLength=").append(steelLength);
+		sb.append(", judge=").append(judge);
+		sb.append(", board=").append(board);
+		sb.append(", wheelNumber=").append(wheelNumber);
+		sb.append(", gradeSteel=").append(gradeSteel);
+		sb.append(", producer=").append(producer);
+		sb.append(", recorderNumber=").append(recorderNumber);
+		sb.append(", state=").append(state);
+		sb.append(", memo=").append(memo);
+		sb.append(", sampleBatch=").append(sampleBatch);
+		sb.append(", strengthLevel=").append(strengthLevel);
+		sb.append(", serialVersionUID=").append(serialVersionUID);
+		sb.append("]");
+		return sb.toString();
+	}
+}

@@ -1,0 +1,47 @@
+package com.hbsi.util;
+
+import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+/**
+ * 时间工具类
+ * @author cxh
+ *
+ */
+public class DateUtil {
+	public static String formatDate(Date date) {
+		if(null==date) {
+			return "";
+		}
+		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		
+		return sdf.format(date);
+	}
+	public static String formatDateTime(Timestamp date) {
+		if(null==date) {
+			return "";
+		}
+		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		
+		return sdf.format(date);
+	}
+	public static String formatDate1(Date date) {
+		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd");
+		if(null==date) {
+			return "";
+		}
+		return sdf.format(date);
+	}
+	public static Date parseDate1(String dateTime) {
+		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd");
+		try {
+			Date date=sdf.parse(dateTime);
+			return date;
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return new Date();
+	}
+}

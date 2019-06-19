@@ -1,0 +1,21 @@
+package com.hbsi.wire.service;
+
+import com.hbsi.domain.WireRope;
+import com.hbsi.response.Response;
+
+/**
+ * 压实股钢丝绳
+ * 
+ * @author lixuyang
+ *
+ */
+public interface Ybt53592010Service {
+	
+	/**
+	 * 钢丝绳综合判定
+	 * @param wireRope
+	 * @return
+	 */
+	Response<WireRope> judgeWireRopeYbt53592010(WireRope wireRope);
+
+}

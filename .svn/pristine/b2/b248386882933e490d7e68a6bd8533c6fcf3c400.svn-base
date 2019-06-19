@@ -1,0 +1,115 @@
+package com.hbsi.structure.service.impl;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.dao.WireAttributesGBT89182006Mapper;
+import com.hbsi.dao.WireAttributesGbt200672017Mapper;
+import com.hbsi.dao.WireAttributesGbt201182017Mapper;
+import com.hbsi.dao.WireAttributesMT7162006Mapper;
+import com.hbsi.dao.WireAttributesYbt53592010Mapper;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+import com.hbsi.structure.service.StructureServie;
+
+/**
+ * 根据ID,显示结构信息
+ * @author lijizhi
+ *
+ */
+@Service
+public class StructureServiceImpl implements StructureServie{
+		
+	 Logger logger =  LoggerFactory.getLogger(this.getClass());
+
+	//注入所有结构
+	@Autowired
+	private WireAttributesGbt200672017Mapper wireAttributesGbt200672017Mapper;	
+	@Autowired
+	private WireAttributesGbt201182017Mapper wireAttributesGbt201182017Mapper;	
+	@Autowired
+	private WireAttributesGBT89182006Mapper wireAttributesGBT89182006Mapper;	
+	@Autowired
+	private WireAttributesMT7162006Mapper wireAttributesMT7162006Mapper;	
+	@Autowired
+	private WireAttributesYbt53592010Mapper wireAttributesYbt53592010Mapper;
+	/**
+	 * 
+	 * @author lijizhi
+	 * 根据ID,显示所有的结构信息
+	 * @return 
+	 * @date 12.7
+	 */
+	@Override
+	public Response<List<?>> showAllStructureById(String regularNum) {	
+								
+		if(regularNum != null && regularNum.equals("")) {//判断是否为空
+						
+			String num = regularNum.trim();//只包含数字的字符串
+			
+			if(num.equals("200672017")) {					
+				try {//查询成功
+					this.success();	
+					return  (Response<List<?>>) wireAttributesGbt200672017Mapper.selectWireAttributesGbt200672017Structure();
+				} catch (Exception e) {//查询失败
+					logger.error("查询失败,原因{}",e);
+					error();
+				}							
+			}
+			if(num.equals("20118201")) {					
+				try {//查询成功
+					this.success();	
+					return  (Response<List<?>>) wireAttributesGbt201182017Mapper.selectWireAttributesGbt201182017Structure();
+				} catch (Exception e) {//查询失败
+					logger.error("查询失败,原因{}",e);
+					error();
+				}							
+			}
+			if(num.equals("89182006")) {						
+				try {//查询成功
+					this.success();	
+					return  (Response<List<?>>) wireAttributesGBT89182006Mapper.selectWireAttributesGBT89182006Structure();
+				} catch (Exception e) {//查询失败
+					logger.error("查询失败,原因{}",e);
+					error();
+				}							
+			}
+			if(num.equals("7162006")) {						
+				try {//查询成功
+					this.success();	
+					return  (Response<List<?>>) wireAttributesMT7162006Mapper.selectWireAttributesMT7162006Structure();
+				} catch (Exception e) {//查询失败
+					logger.error("查询失败,原因{}",e);
+					error();
+				}							
+			}
+			if(num.equals("53592010")) {						
+				try {//查询成功
+					this.success();	
+					return  (Response<List<?>>)wireAttributesYbt53592010Mapper.selectWireAttributesYbt53592010Structure();
+				} catch (Exception e) {//查询失败
+					logger.error("查询失败,原因{}",e);
+					error();
+				}							
+			}
+		}else {
+			error();
+		}
+		return new Response<List<?>>();
+	
+	}
+	
+	private static void error() {
+		throw new BaseException(ExceptionEnum.WIREATTRIBUTES_SELECT_FAILED);
+	}
+	
+	private  void success() {
+		logger.info("查询成功");
+	}
+
+}

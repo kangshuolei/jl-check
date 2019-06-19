@@ -1,0 +1,683 @@
+package com.hbsi.common.utils;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.Row;
+import org.springframework.util.ObjectUtils;
+
+import com.hbsi.common.utils.excel.ImportExcel;
+import com.hbsi.domain.DiameterDeviation;
+import com.hbsi.domain.FromValue;
+import com.hbsi.domain.ReverseBending;
+import com.hbsi.domain.TensileStrength;
+import com.hbsi.domain.WireAttributesGbt201182017;
+import com.hbsi.domain.ZincLayerWeight;
+
+/**
+ * 基础数据导入工具类
+ * 
+ * @author hds
+ *
+ */
+public class BaseDataImportUtil {
+	
+	/**
+	 * 导入表单数据
+	 * @param path
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static List<FromValue> importFromValue(String path) throws InvalidFormatException, IOException {
+		String[] split = path.split("/");
+		System.out.println(split[split.length-1]);
+		String filename = split[split.length-1];
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(path, 0, 0);
+		List<FromValue> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i = ei.getDataRowNum(); i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			FromValue fromvalue = new FromValue();
+			fromvalue.setStandardNum(name);
+			String ratedStrength = ei.getCellValue(row, 0).toString();
+			String surfaceState = ei.getCellValue(row, 1).toString();
+			String twistingMethod = ei.getCellValue(row, 2).toString();
+			if(StringUtils.isNotBlank(ratedStrength))
+			fromvalue.setRatedStrength(ratedStrength.substring(0,ratedStrength.indexOf(".")));
+			fromvalue.setSurfaceState(surfaceState.toString());
+			fromvalue.setTwistingMethod(twistingMethod.toString());
+			System.out.println(fromvalue);
+			list.add(fromvalue);
+			System.out.print("\n");
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入表单数据
+	 * @param file
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static  List<FromValue> importFromValue(File file) throws InvalidFormatException, IOException {
+		String filename=file.getName();
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(file, 0, 0);
+		List<FromValue> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i = ei.getDataRowNum(); i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			FromValue fromvalue = new FromValue();
+			fromvalue.setStandardNum(name);
+			String ratedStrength = ei.getCellValue(row, 0).toString();
+			String surfaceState = ei.getCellValue(row, 1).toString();
+			String twistingMethod = ei.getCellValue(row, 2).toString();
+			if(StringUtils.isNotBlank(ratedStrength))
+			fromvalue.setRatedStrength(ratedStrength.substring(0,ratedStrength.indexOf(".")));
+			fromvalue.setSurfaceState(surfaceState.toString());
+			fromvalue.setTwistingMethod(twistingMethod.toString());
+			System.out.println(fromvalue);
+			list.add(fromvalue);
+			System.out.print("\n");
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入抗拉强度数据
+	 * @param path
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static List<TensileStrength> importTensileStrength(String path) throws InvalidFormatException, IOException {
+		String[] split = path.split("/");
+		System.out.println(split[split.length-1]);
+		String filename = split[split.length-1];
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(path, 0, 3);
+		List<TensileStrength> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i =1; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			TensileStrength tensileStrength =new TensileStrength();
+			tensileStrength.setStandardNum(name);
+			for (int j = 1; j < ei.getLastCellNum(); j++) {
+				String val = ei.getCellValue(row, j).toString();
+				if(ObjectUtils.isEmpty(val)) {
+					
+				}else {
+					 Integer value = Integer.valueOf(val.substring(0,val.indexOf(".")));
+					 String  type = ei.getCellValue(row,0).toString();
+					 String  ratedStrengthVal = ei.getCellValue(ei.getRow(0),j).toString();
+					 Integer ratedStrength = Integer.valueOf(ratedStrengthVal.substring(0,ratedStrengthVal.indexOf(".")));
+					 tensileStrength.setStrengthValue(value);
+					 tensileStrength.setRatedStrength(ratedStrength);
+					 tensileStrength.setType(type.replace("最低抗拉强度", ""));
+					 
+					 System.out.print(tensileStrength+", ");
+					 System.out.print("\n");
+				}
+			
+			}
+			list.add(tensileStrength);
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入抗拉强度数据
+	 * @param file
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static  List<TensileStrength> importTensileStrength(File file) throws InvalidFormatException, IOException {
+		String filename=file.getName();
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(file, 0, 3);
+		List<TensileStrength> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i =1; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			TensileStrength tensileStrength =new TensileStrength();
+			tensileStrength.setStandardNum(name);
+			for (int j = 1; j < ei.getLastCellNum(); j++) {
+				String val = ei.getCellValue(row, j).toString();
+				if(ObjectUtils.isEmpty(val)) {
+					
+				}else {
+					 Integer value = Integer.valueOf(val.substring(0,val.indexOf(".")));
+					 String  type = ei.getCellValue(row,0).toString();
+					 String  ratedStrengthVal = ei.getCellValue(ei.getRow(0),j).toString();
+					 Integer ratedStrength = Integer.valueOf(ratedStrengthVal.substring(0,ratedStrengthVal.indexOf(".")));
+					 tensileStrength.setStrengthValue(value);
+					 tensileStrength.setRatedStrength(ratedStrength);
+					 tensileStrength.setType(type.replace("最低抗拉强度", ""));
+					 
+					 System.out.print(tensileStrength+", ");
+					 System.out.print("\n");
+				}
+			
+			}
+			list.add(tensileStrength);
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入锌层重量数据
+	 * @param path
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static List<ZincLayerWeight> importZincLayerWeight(String path) throws InvalidFormatException, IOException {
+		String[] split = path.split("/");
+		System.out.println(split[split.length-1]);
+		String filename = split[split.length-1];
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(path, 0, 7);
+		List<ZincLayerWeight> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i =1; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			ZincLayerWeight zincLayerWeight =new ZincLayerWeight();
+			zincLayerWeight.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				String val = ei.getCellValue(row, j).toString();
+				if(ObjectUtils.isEmpty(val)) {
+					
+				}else {
+					 Integer value = Integer.valueOf(val.substring(0,val.indexOf(".")));
+					 String type = ei.getCellValue(ei.getRow(0),j).toString();
+					 Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					 Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					 zincLayerWeight.setDiameteMax(diameteMax);
+					 zincLayerWeight.setDiameteMin(diameteMin);
+					 zincLayerWeight.setSurfaceState(type);
+					 zincLayerWeight.setValue(value);
+					
+					System.out.print(zincLayerWeight+", ");
+					System.out.print("\n");
+				}
+				
+			}
+			list.add(zincLayerWeight);
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入锌层重量数据
+	 * @param file
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static  List<ZincLayerWeight> importZincLayerWeighth(File file) throws InvalidFormatException, IOException {
+		String filename=file.getName();
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(file, 0, 7);
+		List<ZincLayerWeight> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i =1; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			ZincLayerWeight zincLayerWeight =new ZincLayerWeight();
+			zincLayerWeight.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				String val = ei.getCellValue(row, j).toString();
+				if(ObjectUtils.isEmpty(val)) {
+					
+				}else {
+					 Integer value = Integer.valueOf(val.substring(0,val.indexOf(".")));
+					 String type = ei.getCellValue(ei.getRow(0),j).toString();
+					 Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					 Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					 zincLayerWeight.setDiameteMax(diameteMax);
+					 zincLayerWeight.setDiameteMin(diameteMin);
+					 zincLayerWeight.setSurfaceState(type);
+					 zincLayerWeight.setValue(value);
+//					
+					System.out.print(zincLayerWeight+", ");
+					System.out.print("\n");
+				}
+				
+			}
+			list.add(zincLayerWeight);
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入直径数据
+	 * @param path
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static List<DiameterDeviation> importDiameterDeviation(String path) throws InvalidFormatException, IOException {
+		String[] split = path.split("/");
+		System.out.println(split[split.length-1]);
+		String filename = split[split.length-1];
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(path, 0, 2);
+		List<DiameterDeviation> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		//获取值，获取该值对应列第一行的数据（类别），该行的第一列的数据（最小值），第三列的数据（最大值。
+		for (int i =1; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			DiameterDeviation diameterDeviation =new DiameterDeviation();
+			diameterDeviation.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				Object val = ei.getCellValue(row, j);
+				if(ObjectUtils.isEmpty(val)) {
+					
+				}else {
+					 Double value = Double.valueOf(val.toString());
+					 String type = ei.getCellValue(ei.getRow(0),j).toString();
+					 Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					 Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					 diameterDeviation.setDiameteMin(diameteMin);;
+					 diameterDeviation.setDiameteMax(diameteMax);
+					 diameterDeviation.setType(type);
+					 diameterDeviation.setValue(value);
+					System.out.print(diameterDeviation+", ");
+					System.out.print("\n");
+				}
+			
+			}
+			list.add(diameterDeviation);
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入直径数据
+	 * @param file
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static  List<DiameterDeviation> importDiameterDeviation(File file) throws InvalidFormatException, IOException {
+		String filename=file.getName();
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(file, 0, 2);
+		List<DiameterDeviation> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		//获取值，获取该值对应列第一行的数据（类别），该行的第一列的数据（最小值），第三列的数据（最大值。
+		for (int i =1; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			DiameterDeviation diameterDeviation =new DiameterDeviation();
+			diameterDeviation.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				Object val = ei.getCellValue(row, j);
+				if(ObjectUtils.isEmpty(val)) {
+					
+				}else {
+					 Double value = Double.valueOf(val.toString());
+					 String type = ei.getCellValue(ei.getRow(0),j).toString();
+					 Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					 Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					 diameterDeviation.setDiameteMin(diameteMin);;
+					 diameterDeviation.setDiameteMax(diameteMax);
+					 diameterDeviation.setType(type);
+					 diameterDeviation.setValue(value);
+					System.out.print(diameterDeviation+", ");
+					System.out.print("\n");
+				}
+			
+			}
+			list.add(diameterDeviation);
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入绳数据
+	 * @param path
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static List<WireAttributesGbt201182017> importWireAttributesGbt201182017(String path) throws InvalidFormatException, IOException {
+		String[] split = path.split("/");
+		System.out.println(split[split.length-1]);
+		String filename = split[split.length-1];
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(path, 0, 1);
+		List<WireAttributesGbt201182017> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i = ei.getDataRowNum(); i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			
+			WireAttributesGbt201182017 wireAttributes = new WireAttributesGbt201182017();
+			
+			String structure = ei.getCellValue(row, 0).toString();
+			
+			Double minimumBreakingForce = Double.valueOf(ei.getCellValue(row, 1).toString());
+			
+			Double tanningLossFactor = Double.valueOf(ei.getCellValue(row, 2).toString());
+			
+			String partialIntensityLowval = ei.getCellValue(row, 3).toString();
+			if(StringUtils.isNotBlank(partialIntensityLowval));
+			Integer partialIntensityLow = Integer.valueOf(partialIntensityLowval.substring(0,partialIntensityLowval.indexOf(".")));
+			
+			String partialReverseLowval = ei.getCellValue(row, 3).toString();
+			if(StringUtils.isNotBlank(partialReverseLowval));
+			Integer partialReverseLow = Integer.valueOf(partialReverseLowval.substring(0,partialReverseLowval.indexOf(".")));
+			
+			String intensityLowval = ei.getCellValue(row, 3).toString();
+			if(StringUtils.isNotBlank(intensityLowval));
+			Integer intensityLow = Integer.valueOf(intensityLowval.substring(0,intensityLowval.indexOf(".")));
+			
+			String reverseLowval = ei.getCellValue(row, 4).toString();
+			if(StringUtils.isNotBlank(reverseLowval));
+			Integer reverseLow = Integer.valueOf(reverseLowval.substring(0,reverseLowval.indexOf(".")));
+			
+			Double twistDistance = Double.valueOf(ei.getCellValue(row, 5).toString());
+			
+			
+			
+			
+			wireAttributes.setStructure(structure);
+			wireAttributes.setMinimumBreakingForce(minimumBreakingForce);
+			wireAttributes.setTanningLossFactor(tanningLossFactor);
+			wireAttributes.setPartialIntensityLow(partialIntensityLow);
+			wireAttributes.setPartialReverseLow(partialReverseLow);
+			wireAttributes.setIntensityLow(intensityLow);
+			wireAttributes.setReverseLow(reverseLow);
+			wireAttributes.setTwistDistance(twistDistance);
+			
+			System.out.println(wireAttributes);
+			
+			list.add(wireAttributes);
+			System.out.print("\n");
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入绳数据
+	 * @param file
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static  List<WireAttributesGbt201182017> importWireAttributesGbt201182017(File file) throws InvalidFormatException, IOException {
+		String filename=file.getName();
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(file, 0, 1);
+		List<WireAttributesGbt201182017> list = new ArrayList<>();
+		String sheetName = ei.getSheet().getSheetName();
+		System.out.println(sheetName);
+		for (int i = ei.getDataRowNum(); i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			
+			WireAttributesGbt201182017 wireAttributes = new WireAttributesGbt201182017();
+			
+			String structure = ei.getCellValue(row, 0).toString();
+			
+			Double minimumBreakingForce = Double.valueOf(ei.getCellValue(row, 1).toString());
+			
+			Double tanningLossFactor = Double.valueOf(ei.getCellValue(row, 2).toString());
+			
+			String partialIntensityLowval = ei.getCellValue(row, 3).toString();
+			if(StringUtils.isNotBlank(partialIntensityLowval));
+			Integer partialIntensityLow = Integer.valueOf(partialIntensityLowval.substring(0,partialIntensityLowval.indexOf(".")));
+			
+			String partialReverseLowval = ei.getCellValue(row, 3).toString();
+			if(StringUtils.isNotBlank(partialReverseLowval));
+			Integer partialReverseLow = Integer.valueOf(partialReverseLowval.substring(0,partialReverseLowval.indexOf(".")));
+			
+			String intensityLowval = ei.getCellValue(row, 3).toString();
+			if(StringUtils.isNotBlank(intensityLowval));
+			Integer intensityLow = Integer.valueOf(intensityLowval.substring(0,intensityLowval.indexOf(".")));
+			
+			String reverseLowval = ei.getCellValue(row, 4).toString();
+			if(StringUtils.isNotBlank(reverseLowval));
+			Integer reverseLow = Integer.valueOf(reverseLowval.substring(0,reverseLowval.indexOf(".")));
+			
+			Double twistDistance = Double.valueOf(ei.getCellValue(row, 5).toString());
+			
+			
+			
+			
+			wireAttributes.setStructure(structure);
+			wireAttributes.setMinimumBreakingForce(minimumBreakingForce);
+			wireAttributes.setTanningLossFactor(tanningLossFactor);
+			wireAttributes.setPartialIntensityLow(partialIntensityLow);
+			wireAttributes.setPartialReverseLow(partialReverseLow);
+			wireAttributes.setIntensityLow(intensityLow);
+			wireAttributes.setReverseLow(reverseLow);
+			wireAttributes.setTwistDistance(twistDistance);
+			
+			System.out.println(wireAttributes);
+			
+			list.add(wireAttributes);
+			System.out.print("\n");
+		}
+		System.out.println(list);
+		return list;
+	}
+	/**
+	 * 导入扭转数据
+	 * @param path
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static List<ReverseBending> importReverse(String path) throws InvalidFormatException, IOException {
+		String[] split = path.split("/");
+		System.out.println(split[split.length-1]);
+		String filename = split[split.length-1];
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(path, 0,5);
+		List<ReverseBending> list=new ArrayList<>();
+		//获取值，获取该值对应列第一行的数据（表面状态），第二行的数据（公称强度），该行的第一列的数据（最小值），第三列的数据（最大值。
+		String sheetName = ei.getSheet().getSheetName();
+		for (int i =2; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			ReverseBending reverseBeding =new ReverseBending();
+			reverseBeding.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				Object val = ei.getCellValue(row, j);
+				Object k= ei.getCellValue(ei.getRow(0),j);
+				if(ObjectUtils.isEmpty(val)||ObjectUtils.isEmpty(k)) {
+					
+				}else {
+					Integer valueRob = Integer.valueOf(val.toString().substring(0,val.toString().indexOf(".")));
+					 String surfaceState = ei.getCellValue(ei.getRow(0),j).toString();
+					 String ratedStrength = ei.getCellValue(ei.getRow(1),j).toString();
+					 Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					 Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					 reverseBeding.setRatedStrength(ratedStrength.substring(0,ratedStrength.indexOf(".")));
+					 reverseBeding.setSurfaceState(surfaceState);
+					 reverseBeding.setDiameteMin(diameteMin);
+					 reverseBeding.setDiameteMax(diameteMax);
+					 reverseBeding.setValueRob(valueRob);
+					 reverseBeding.setType("R");
+					System.out.print(reverseBeding+", ");
+					System.out.print("\n");
+				}
+			
+			}
+			list.add(reverseBeding);
+		}
+		return list;
+	}
+	/**
+	 * 导入扭转数据
+	 * @param file
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static  List<ReverseBending> importReverse(File file) throws InvalidFormatException, IOException {
+		String filename=file.getName();
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(file, 0,5);
+		List<ReverseBending> list=new ArrayList<>();
+		//获取值，获取该值对应列第一行的数据（表面状态），第二行的数据（公称强度），该行的第一列的数据（最小值），第三列的数据（最大值。
+		String sheetName = ei.getSheet().getSheetName();
+		for (int i =2; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			ReverseBending reverseBeding =new ReverseBending();
+			reverseBeding.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				Object val = ei.getCellValue(row, j);
+				Object k= ei.getCellValue(ei.getRow(0),j);
+				if(ObjectUtils.isEmpty(val)||ObjectUtils.isEmpty(k)) {
+					
+				}else {
+					Integer valueRob = Integer.valueOf(val.toString().substring(0,val.toString().indexOf(".")));
+					 String surfaceState = ei.getCellValue(ei.getRow(0),j).toString();
+					 String ratedStrength = ei.getCellValue(ei.getRow(1),j).toString();
+					 Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					 Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					 reverseBeding.setRatedStrength(ratedStrength.substring(0,ratedStrength.indexOf(".")));
+					 reverseBeding.setSurfaceState(surfaceState);
+					 reverseBeding.setDiameteMin(diameteMin);
+					 reverseBeding.setDiameteMax(diameteMax);
+					 reverseBeding.setValueRob(valueRob);
+					 reverseBeding.setType("R");
+					System.out.print(reverseBeding+", ");
+					System.out.print("\n");
+				}
+			
+			}
+			list.add(reverseBeding);
+		}
+		return list;
+	}
+	/**
+	 * 导入弯曲数据
+	 * @param path
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static List<ReverseBending> importBending(String path) throws InvalidFormatException, IOException {
+		String[] split = path.split("/");
+		System.out.println(split[split.length-1]);
+		String filename = split[split.length-1];
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(path, 0,4);
+		List<ReverseBending> list=new ArrayList<>();
+		//获取值，获取该值对应列第一行的数据（表面状态），第二行的数据（公称强度），该行的第一列的数据（最小值），第三列的数据（最大值。
+		String sheetName = ei.getSheet().getSheetName();
+		for (int i =2; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			ReverseBending reverseBeding =new ReverseBending();
+			reverseBeding.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				Object val = ei.getCellValue(row, j);
+				Object k= ei.getCellValue(ei.getRow(0),j);
+				if(ObjectUtils.isEmpty(val)||ObjectUtils.isEmpty(k)) {
+					
+				}else {
+					Integer valueRob = Integer.valueOf(val.toString().substring(0,val.toString().indexOf(".")));
+					String surfaceState = ei.getCellValue(ei.getRow(0),j).toString();
+					String ratedStrength = ei.getCellValue(ei.getRow(1),j).toString();
+					Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					reverseBeding.setRatedStrength(ratedStrength.substring(0,ratedStrength.indexOf(".")));
+					reverseBeding.setSurfaceState(surfaceState);
+					reverseBeding.setDiameteMin(diameteMin);
+					reverseBeding.setDiameteMax(diameteMax);
+					reverseBeding.setValueRob(valueRob);
+					reverseBeding.setType("B");
+					System.out.print(reverseBeding+", ");
+					System.out.print("\n");
+				}
+				
+			}
+			list.add(reverseBeding);
+		}
+		return list;
+	}
+	/**
+	 * 导入弯曲数据
+	 * @param file
+	 * @return
+	 * @throws InvalidFormatException
+	 * @throws IOException
+	 */
+	public static  List<ReverseBending> importBending(File file) throws InvalidFormatException, IOException {
+		String filename=file.getName();
+		String name = filename.substring(0, filename.indexOf("."));
+		System.out.println(name);
+		ImportExcel ei = new ImportExcel(file, 0,4);
+		List<ReverseBending> list=new ArrayList<>();
+		//获取值，获取该值对应列第一行的数据（表面状态），第二行的数据（公称强度），该行的第一列的数据（最小值），第三列的数据（最大值。
+		String sheetName = ei.getSheet().getSheetName();
+		for (int i =2; i <= ei.getLastDataRowNum(); i++) {
+			Row row = ei.getRow(i);
+			ReverseBending reverseBeding =new ReverseBending();
+			reverseBeding.setStandardNum(name);
+			for (int j = 3; j < ei.getLastCellNum(); j++) {
+				Object val = ei.getCellValue(row, j);
+				Object k= ei.getCellValue(ei.getRow(0),j);
+				if(ObjectUtils.isEmpty(val)||ObjectUtils.isEmpty(k)) {
+					
+				}else {
+					Integer valueRob = Integer.valueOf(val.toString().substring(0,val.toString().indexOf(".")));
+					String surfaceState = ei.getCellValue(ei.getRow(0),j).toString();
+					String ratedStrength = ei.getCellValue(ei.getRow(1),j).toString();
+					Double diameteMin =Double.valueOf(ei.getCellValue(ei.getRow(i),0).toString());
+					Double diameteMax =Double.valueOf(ei.getCellValue(ei.getRow(i),2).toString());
+					reverseBeding.setRatedStrength(ratedStrength.substring(0,ratedStrength.indexOf(".")));
+					reverseBeding.setSurfaceState(surfaceState);
+					reverseBeding.setDiameteMin(diameteMin);
+					reverseBeding.setDiameteMax(diameteMax);
+					reverseBeding.setValueRob(valueRob);
+					reverseBeding.setType("B");
+					System.out.print(reverseBeding+", ");
+					System.out.print("\n");
+				}
+				
+			}
+			list.add(reverseBeding);
+		}
+		return list;
+	}
+	
+	
+	public static void main(String[] args) throws InvalidFormatException, IOException {
+		
+		String path="/Users/admin/Desktop/GBT20118-2006.xls";
+//		File file=new File(path);
+//		List<FromValue> fromValueList = importFromValue(file);
+//		List<ZincLayerWeight> importvalue= importZincLayerWeight(path);
+		List<FromValue> importvalue1= importFromValue(path);
+		
+	}
+}

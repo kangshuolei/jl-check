@@ -1,0 +1,73 @@
+package com.hbsi.wire.service;
+/**
+ * @description 钢丝绳业务逻辑
+ * @author cxh
+ *
+ */
+
+import java.util.List;
+
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+//import com.hbsi.domain.WireRope;
+import com.hbsi.response.Response;
+
+public interface WireRopeService {
+	/**
+	 * 查询或者新建钢丝绳报告
+	 * @param enstrustmentNumber
+	 * @return
+	 */
+	Response<WireRope> selectOrCreateWR(String enstrustmentNumber);
+	/**
+	 * 提交报告
+	 * @param wireRope
+	 * @return
+	 */
+	Response<WireRope> saveWire(WireRope wireRope);
+	/**
+	 * 调入数据
+	 * @param enstrustmentNumber
+	 * @return
+	 */
+	Response<List<WireData>> selectWireData(WireRope wireRope);
+	/**
+	 *钢丝绳总和判定
+	 * @param wireRope
+	 * @return
+	 */
+	Response<Object> judgeWireRopeGbt201182017(WireRope wireRope);
+	/**
+	 * 调整标准号
+	 * @param enstrustmentNumber
+	 * @param standardNumber
+	 * @return
+	 */
+	Response<WireRope> updateStandard(String enstrustmentNumber,String standardNumber);
+	/**
+	 * 调整直径
+	 * @param enstrustmentNumber
+	 * @param trialClass
+	 * @return
+	 */
+	Response<WireRope> updateDiamate(WireRope wireRope);
+	/**
+	 * 保存/修改钢丝绳数据   该方法为公共方法，为各个标准使用
+	 * @param wireRope
+	 */
+	 void saveWireData(WireRope wireRope);
+	 /**
+	  * 计算实测破断拉力   该方法为公共方法，为各个标准使用
+	  * @param wireRope
+	  * @return
+	  */
+	double calWireBreakTensile(WireRope wireRope);
+	/**
+	 * 综合判定
+	 * @param wireRope
+	 * @return
+	 */
+	Response<Object> judgeWireRopeAll(WireRope wireRope);
+	
+
+}

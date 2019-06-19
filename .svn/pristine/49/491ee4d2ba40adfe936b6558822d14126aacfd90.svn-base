@@ -1,0 +1,49 @@
+package com.hbsi.export.service;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletResponse;
+
+import com.hbsi.domain.ExportDomain;
+import com.hbsi.response.Response;
+
+public interface ReportExportService {
+
+	/**
+	 * 导出报告
+	 * @param entrustNum
+	 * @return
+	 * @throws FileNotFoundException 
+	 * @throws IOException 
+	 */
+	public void ExportReport(String entrustNum, HttpServletResponse response) throws FileNotFoundException, IOException;
+	/**
+	 * 报告的头文件
+	 * @param entrustNum
+	 * @return
+	 * @throws Exception 
+	 */
+	public Map<String,Object> HeadOfReport(String entrustNum) throws Exception;
+	/**
+	 * 拆股实验信息
+	 * @param entrustNum
+	 * @return
+	 */
+	public Map<String,Object> BreakStockData(String entrustNum);
+	/**
+	 * 返回前端map数据用于展示
+	 * @param entrustNum
+	 * @return 
+	 * @throws IOException 
+	 */
+	public Map<String, Object> ExportReportJson(String entrustNum) throws IOException;
+	/**
+	 * 根据传入的ExportDomain信息，更新数据库中的wireRope表和BreakConclusion表
+	 * 根据对应的委托单号
+	 * @param exportDomain
+	 * @return 
+	 */
+	public Response updateConclusion(ExportDomain exportDomain);
+}

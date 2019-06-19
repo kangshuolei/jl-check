@@ -1,0 +1,22 @@
+package com.hbsi.dao;
+
+import com.hbsi.domain.SteelTensileStrength;
+
+public interface SteelTensileStrengthMapper {
+
+	int deleteByPrimaryKey(Integer id);
+
+	int insert(SteelTensileStrength record);
+
+	int insertSelective(SteelTensileStrength record);
+
+	SteelTensileStrength selectByPrimaryKey(Integer id);
+
+	int updateByPrimaryKeySelective(SteelTensileStrength record);
+
+	int updateByPrimaryKey(SteelTensileStrength record);
+	
+	SteelTensileStrength selectSteelTSData(SteelTensileStrength sts);//查询抗拉强度范围值
+	
+	SteelTensileStrength selectSteelTSData2(SteelTensileStrength sts);//降级重新判定
+}

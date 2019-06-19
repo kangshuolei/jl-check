@@ -1,0 +1,72 @@
+package com.hbsi.entrustment;
+
+import javax.annotation.Resource;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.web.WebAppConfiguration;
+
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.hbsi.JlCheckApplication;
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.entrustment.service.EntrustmentDataService;
+import com.hbsi.response.Response;
+
+/**
+ * 委托单数据
+ * 
+ * @author lixuyang
+ *
+ */
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes =JlCheckApplication.class)
+@WebAppConfiguration
+public class EntrustmentDataTest {
+	
+	@Resource
+	private EntrustmentDataService entrustmentDataService;
+	
+	/**
+	 * 查询或新建委托单
+	 */
+//	@Test
+	public void testSelectOrSaveEntrustmentData() {
+		JSONObject json = new JSONObject();
+		json.put("entrustmentNumber", "WG180927B004");
+		Response<EntrustmentData> response = entrustmentDataService.selectOrSaveEntrustmentData(json.toJSONString());
+		System.out.println(response);
+	}
+	
+	/**
+	 * 添加委托单数据和钢丝数据（提交按钮）
+	 */
+//	@Test
+	public void testSaveEntrustmentData() {
+		JSONObject json = new JSONObject();
+		json.put("breakTensile", 15.21);
+		json.put("torsionTimes", 19);
+		json.put("bendingTimes", 16);
+		JSONObject json2 = new JSONObject();
+		json2.put("breakTensile", 15.25);
+		json2.put("torsionTimes", 27);
+		json2.put("bendingTimes", 24);
+		JSONArray array = new JSONArray();
+		array.add(json);
+		array.add(json2);
+		JSONObject object= new JSONObject();
+		object.put("entrustmentNumber", "WG180927B004");
+		object.put("reviewer", "张三");
+		object.put("steelNumber", 15);
+		object.put("testClerkNumber", "02");
+		object.put("testMachine", "WJ");
+		object.put("steelWireDataList", array);
+		String info = object.toJSONString();
+		System.out.println(info);
+		Response<Integer> response = entrustmentDataService.saveEntDataAndSteelData(info);
+		System.out.println(response);
+	}
+
+}

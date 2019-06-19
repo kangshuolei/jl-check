@@ -1,0 +1,35 @@
+package com.hbsi.wire.service;
+/**
+ * @description 钢丝绳业务逻辑
+ * @author cxh
+ *
+ */
+
+import java.util.List;
+
+import com.hbsi.domain.WireData;
+import com.hbsi.domain.WireRope;
+//import com.hbsi.domain.WireRope;
+import com.hbsi.response.Response;
+
+public interface WireRopeService {
+	/**
+	 * 查询或者新建钢丝绳报告
+	 * @param enstrustmentNumber
+	 * @return
+	 */
+	Response<WireRope> selectOrCreateWR(String enstrustmentNumber);
+	/**
+	 * 调入数据
+	 * @param enstrustmentNumber
+	 * @return
+	 */
+	Response<List<WireData>> selectWireData(WireRope wireRope);
+	/**
+	 *钢丝绳总和判定
+	 * @param wireRope
+	 * @return
+	 */
+	Response<Object> judgeWireRope(WireRope wireRope);
+
+}

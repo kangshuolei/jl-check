@@ -1,0 +1,40 @@
+package com.hbsi.dao;
+
+import java.util.List;
+
+import com.hbsi.domain.SampleRecord;
+
+public interface SampleRecordMapper {
+
+	int deleteByPrimaryKey(Integer id);
+
+	int insert(SampleRecord record);
+
+	int insertSelective(SampleRecord record);
+
+	SampleRecord selectByPrimaryKey(Integer id);
+
+	int updateByPrimaryKeySelective(SampleRecord record);
+
+	int updateByPrimaryKey(SampleRecord record);
+	
+	List<SampleRecord> selectSampleRecordList(SampleRecord sampleRecord);//查询试验记录
+	
+	List<SampleRecord> selectSampleErrorList(SampleRecord sampleRecord);//查询错误处理列表
+	
+	Integer deleteSampleError(Integer id);//根据ID删除错误数据
+	
+	Integer insertSampleEntrustmentNumber(SampleRecord sampleRecord);//根据试样批次添加委托单号
+	/**
+	 * 查询当天的批次号
+	 * @param dateTime
+	 * @return
+	 */
+	List<SampleRecord> selectSampleBatch(String dateTime);
+	/**
+	 * 根据委托单号查询实验数据
+	 * @param entrustmentNum
+	 * @return
+	 */
+	List<SampleRecord> selectSampleData(String entrustmentNum);
+}

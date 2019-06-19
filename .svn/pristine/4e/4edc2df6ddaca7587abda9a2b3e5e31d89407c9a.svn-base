@@ -1,0 +1,266 @@
+package com.hbsi.entrustment.service.impl;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.hbsi.dao.EntrustmentDataMapper;
+import com.hbsi.dao.EntrustmentMapper;
+import com.hbsi.dao.SampleRecordMapper;
+import com.hbsi.dao.SteelWireDataMapper;
+import com.hbsi.dao.WireRopeMapper;
+import com.hbsi.domain.Entrustment;
+import com.hbsi.domain.EntrustmentData;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.domain.SteelWireData;
+import com.hbsi.domain.WireRope;
+import com.hbsi.entrustment.entity.EntInfo;
+import com.hbsi.entrustment.service.EntrustmentService;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+
+/**
+ * 委托单管理
+ * 
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+@Service
+public class EntrustmentServiceImpl implements EntrustmentService {
+
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+	@Autowired
+	private EntrustmentMapper entrustmentMapper;// 委托单
+	@Autowired
+	private SampleRecordMapper sampleRecordMapper;// 试验记录
+	@Autowired
+	private EntrustmentDataMapper entrustmentDataMapper;// 委托单数据
+	@Autowired
+	private SteelWireDataMapper steelWireDataMapper;// 钢丝数据
+	@Autowired
+	private WireRopeMapper wireRopeMapper;// 钢丝绳报告
+
+	/**
+	 * 添加委托单号
+	 * 
+	 * @param entrustment
+	 * @return
+	 */
+	@Transactional
+	@Override
+	public Response<Integer> saveEntrustment(Entrustment entrustment) {
+		String message = verifyEntrustment(entrustment);
+		if (message != null) {
+			logger.info("验证委托单信息，验证结果:{}", message);
+			return new Response<Integer>("00001000", message, null);
+		}
+		// 查询试验数据表中委托单是否已存在
+//		SampleRecord sr = new SampleRecord();
+//		sr.setEntrustmentNumber(entrustment.getEntrustmentNumber());
+//		sr.setSampleBatch(entrustment.getSampleBatch());
+//		List<SampleRecord> list = sampleRecordMapper.selectEntNum(entrustment.getEntrustmentNumber());
+//		logger.info("根据委托单号:{}查询委托单是否已存在,结果：{}条数据", entrustment.getEntrustmentNumber(), list.size());
+//		if(list.size() > 0) {
+//			logger.info("委托单号已存在");
+//			return new Response<>("00001000", "委托单号已存在", null);
+//		}
+		Integer result = null;
+		try {
+			// 根据批次号更新试验记录表
+//			Integer r = sampleRecordMapper.insertSampleEntNum(sr);
+//			logger.info("根据sr:{}更新试验记录表,结果：{}", sr, r);
+//			if(r > 0) {
+			// 查询委托单表中委托单号是否已存在
+			Entrustment e = entrustmentMapper.selectEntrustmentNumber(entrustment.getEntrustmentNumber());
+			if (e != null) {
+				logger.info("委托单号已存在");
+				return new Response<>("00001000", "委托单号已存在", null);
+			}
+			// 添加委托单表
+			result = entrustmentMapper.insert(entrustment);
+			logger.info("根据entrustment:{}添加委托单表,结果：{}", entrustment, result);
+//			}
+		} catch (Exception e) {
+			logger.error("添加委托单号异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_SAVE_FAILED);
+		}
+		return new Response<>(result);
+	}
+
+	/**
+	 * 修改委托单号
+	 * 
+	 * @param entrustment
+	 * @return
+	 */
+	@Override
+	public Response<Integer> updateEntrustment(EntInfo ei) {
+		if (ei.getSampleBatch() == null || ei.getSampleBatch() == 0) {
+			logger.info("试验批次不能为空");
+			return new Response<>("00001000", "试验批次不能为空", null);
+		}
+		if (ei.getNewEntNum() == null || "".equals(ei.getNewEntNum())) {
+			logger.info("委托单号为空");
+			return new Response<>("00001000", "委托单号为空", null);
+		}
+		Integer result = null;
+		Entrustment entrustment = new Entrustment();
+		entrustment.setSampleBatch(ei.getSampleBatch());
+		entrustment.setEntrustmentNumber(ei.getNewEntNum());
+		// 根据批次号查询原委托单号
+		Entrustment entInfo = entrustmentMapper.selectEntrustByBatchNum(ei.getSampleBatch());
+		if (entInfo.getEntrustmentNumber() != null || !"".equals(entInfo.getEntrustmentNumber())) {
+			ei.setOldEntNum(entInfo.getEntrustmentNumber());
+			// 查询委托单数据表和钢丝报告表中是否已存在记录
+			EntrustmentData ed = entrustmentDataMapper.selectEntrustmentData(ei.getOldEntNum());
+			List<SteelWireData> list = steelWireDataMapper.selectByEnNum(ei.getOldEntNum());
+			WireRope wr = wireRopeMapper.selectByEnsNum(ei.getOldEntNum());
+			if (ed != null || list.size() > 0 || wr != null) {
+				// 存在，提示不允许修改
+				logger.info("委托单号已在使用中，不能修改");
+				return new Response<>("00001000", "委托单号已在使用中，不能修改", null);
+			} else {
+				// 不存在，则修改
+				// 查询之前表中是否已存在委托单号
+				Entrustment ee = entrustmentMapper.selectEntrustmentNumber(ei.getNewEntNum());
+				if (ee != null) {
+					logger.info("委托单号已存在");
+					return new Response<Integer>("00001000", "委托单号已存在", null);
+				}
+			}
+		}
+		try {
+			// 更新委托单表
+			result = entrustmentMapper.updateByPrimaryKeySelective(entrustment);
+			logger.info("根据entrustment:{}修改委托单号,结果：{}", entrustment, result);
+		} catch (Exception e) {
+			logger.error("修改委托单号异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_UPDATE_FAILED);
+		}
+		// 查询是否已做试验
+//				List<SampleRecord> ll = sampleRecordMapper.selectData(ei.getSampleBatch());
+//				if(ll == null || ll.size() == 0) {
+//					logger.info("没有找到实验记录，暂无法添加委托单号");
+//					return new Response<Integer>("00001000", "没有对应实验记录，暂无法添加委托单号", null);
+//				}
+		// 根据批次号更新试验记录表
+//				SampleRecord sr = new SampleRecord();
+//				sr.setEntrustmentNumber(entrustment.getEntrustmentNumber());
+//				sr.setSampleBatch(entrustment.getSampleBatch());
+//				Integer r = sampleRecordMapper.insertSampleEntNum(sr);
+//				logger.info("根据sr:{}更新试验记录表,结果：{}", sr, r);
+//				if(r > 0) {
+		// 更新委托单表
+//		           result = entrustmentMapper.updateByPrimaryKeySelective(entrustment);
+//		           logger.info("根据entrustment:{}修改委托单号,结果：{}", entrustment, result);
+//	            }
+
+		return new Response<>(result);
+	}
+
+	/**
+	 * 删除委托单号
+	 * 
+	 * @param entrustment
+	 * @return
+	 */
+	@Transactional
+	@Override
+	public Response<Integer> deleteEntrustment(Entrustment entrustment) {
+		String message = verifyEntrustment(entrustment);
+		if (message != null) {
+			logger.info("验证委托单信息，验证结果:{}", message);
+			return new Response<Integer>("00001000", message, null);
+		}
+		Integer result = null;
+		// 查询委托单数据表和钢丝报告表中是否已存在记录
+		EntrustmentData ed = entrustmentDataMapper.selectEntrustmentData(entrustment.getEntrustmentNumber());
+		List<SteelWireData> list = steelWireDataMapper.selectByEnNum(entrustment.getEntrustmentNumber());
+		WireRope wr = wireRopeMapper.selectByEnsNum(entrustment.getEntrustmentNumber());
+		// 存在，提示不允许删除
+		if (ed != null || list.size() > 0 || wr != null) {
+			logger.info("委托单号已在使用中，不能修改");
+			return new Response<>("00001000", "委托单号已在使用中，不能修改", null);
+		} else {// 不存在，则删除
+			try {
+				// 查询是否已做试验
+//				List<SampleRecord> ll = sampleRecordMapper.selectData(entrustment.getSampleBatch());
+//				if (list == null || ll.size() == 0) {
+//					result = entrustmentMapper.deleteEntrustment(entrustment);
+//					logger.info("根据entrustment:{}删除委托单号,结果：{}", entrustment, result);
+//				} else {
+//					// 根据批次号删除试验记录表
+//					Integer r = sampleRecordMapper.deleteEntNum(entrustment.getSampleBatch());
+//					logger.info("根据sampleBatch:{}删除试验记录表,结果：{}", entrustment.getSampleBatch(), r);
+//					if (r > 0) {
+						// 删除委托单
+						result = entrustmentMapper.deleteEntrustment(entrustment);
+						logger.info("根据entrustment:{}删除委托单号,结果：{}", entrustment, result);
+//					}
+//				}
+			} catch (Exception e) {
+				logger.error("删除委托单号异常 异常信息：{}", e.getMessage());
+				throw new BaseException(ExceptionEnum.ENTRUSTMENT_UPDATE_FAILED);
+			}
+		}
+		return new Response<>(result);
+	}
+
+	/**
+	 * 查询委托单号列表
+	 * 
+	 * @return
+	 */
+	@Override
+	public Response<List<Entrustment>> selectEntrustmentList() {
+		List<Entrustment> entList = null;
+		try {
+			entList = entrustmentMapper.selectEntrustmentList();
+			logger.info("查询所有的委托单号列表,结果：{}", entList);
+		} catch (Exception e) {
+			logger.error("查询委托单号列表异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.ENTRUSTMENT_SELECT_FAILED);
+		}
+		return new Response<>(entList);
+	}
+
+	/**
+	 * 验证委托单信息
+	 * 
+	 * @param entrustment
+	 * @return
+	 */
+	public String verifyEntrustment(Entrustment entrustment) {
+		String message = null;
+		if (entrustment.getSampleBatch() == null || entrustment.getSampleBatch() == 0) {
+			return "试验批次不能为空";
+		}
+//		if(entrustment.getEntrustmentNumber() == null || "".equals(entrustment.getEntrustmentNumber())) {
+//			return "委托单号不能为空";
+//		}
+		return message;
+	}
+
+	public Response<List<Entrustment>> selectEntrustment(String ent) {
+		Entrustment e = new Entrustment();
+		e.setEntrustmentNumber(ent);
+		return new Response<List<Entrustment>>(entrustmentMapper.selectEnts(e));
+	}
+
+	/**
+	 * 这个方法作者shazhou 用途是根据批次号查询得到相应的委托单号
+	 */
+	public Response<Entrustment> selectEntruByBatchNum(Integer sampleBatch) {
+		Entrustment entrustment = entrustmentMapper.selectEntrustByBatchNum(sampleBatch);
+		return new Response<>(entrustment);
+
+	}
+
+}

@@ -1,0 +1,24 @@
+package com.hbsi.dao;
+
+import java.util.List;
+
+import com.hbsi.domain.EntrustmentData;
+
+public interface EntrustmentDataMapper {
+
+	int deleteByPrimaryKey(Integer id);
+
+	int insert(EntrustmentData record);//添加报告数据
+
+	int insertSelective(EntrustmentData record);
+
+	EntrustmentData selectByPrimaryKey(Integer id);
+
+	int updateByPrimaryKeySelective(EntrustmentData record);//补全报告数据
+
+	int updateByPrimaryKey(EntrustmentData record);
+	
+	EntrustmentData selectEntrustmentData(String entrustmentNumber);//查询报告是否已存在
+	
+	List<EntrustmentData> selectEntsData(String entrustmentNumber);//模糊查询委托单数据
+}

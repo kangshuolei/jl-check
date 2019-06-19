@@ -1,0 +1,118 @@
+package com.hbsi.entrustmenthistory.service.impl;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.hbsi.dao.EntrustmentHistoryMapper;
+import com.hbsi.domain.EntrustmentHistory;
+import com.hbsi.entrustmenthistory.service.EntrustmentHistoryService;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.Response;
+
+/**
+ * 委托历史表管理
+ * 
+ * @author lijizhi
+ * @date 12月6日
+ * 
+ */
+@Service
+public class EntrustmentHistoryServiceImpl implements EntrustmentHistoryService {
+
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());// 可以打印日志信息
+
+	@Autowired
+	private EntrustmentHistoryMapper entrustmentHistoryMapper;
+
+	/**
+	 * 通过主键(ID)删除委托历史表
+	 */
+	@Override
+	public Response<Integer> deleteEntrustmentHistory(Integer id) {
+		int message = 0;
+		try {// 添加成功
+			message = 1;
+			logger.info("删除成功");
+			entrustmentHistoryMapper.deleteByPrimaryKey(id);
+		} catch (Exception e) {
+			message = -1;
+			logger.error("删除失败,原因:{}", e);
+			throw new BaseException(ExceptionEnum.ENTRUSTMENTHISTORY_DELETE_FAILED);
+		}
+
+		return new Response<Integer>(message);
+	}
+
+	/**
+	 * 添加委托历史表
+	 */
+	@Override
+	public Response<Integer> saveEntrustmentHistory(EntrustmentHistory record) {
+
+		int message = 0;
+
+		try {// 添加信息成功
+			entrustmentHistoryMapper.insert(record);
+			message = 1;
+			logger.info("添加成功");
+		} catch (Exception e) {// 添加信息失败
+			message = -1;
+			logger.error("添加数据失败，原因是：{}", e);
+			throw new BaseException(ExceptionEnum.ENTRUSTMENTHISTORY_SAVE_FAILED);
+		}
+		return new Response<Integer>(message);
+	}
+
+	/**
+	 * 通过主键(ID)查询委托历史表
+	 */
+	@Override
+	public Response<List<EntrustmentHistory>> selectEntrustmentHistory(Integer id) {
+		List<EntrustmentHistory> list = new ArrayList<EntrustmentHistory>();// 存放查询的数据
+
+		try {// 成功
+
+			logger.info("查询成功,得到的表为:{}", list);
+<<<<<<< .mine
+			list.add(entrustmentHistoryMapper.selectByPrimaryKey(id));
+=======
+			entrustmentHistoryMapper.selectByPrimaryKey(id);
+>>>>>>> .r375
+		} catch (Exception e) {// 失败
+
+			logger.error("查询失败,原因{}", e);
+			throw new BaseException(ExceptionEnum.ENTRUSTMENTHISTORY_SELECT_FAILED);
+
+		}
+
+		return new Response<List<EntrustmentHistory>>(list);
+	}
+
+	/**
+	 * 通过主键(ID)更新委托历史表
+	 */
+	@Override
+	public Response<Integer> updateEntrustmentHistory(EntrustmentHistory record) {
+		int message = 0;
+
+		try {// 添加成功
+			message = 1;
+			logger.info("更新成功");
+			entrustmentHistoryMapper.updateByPrimaryKey(record);
+		} catch (Exception e) {// 添加失败
+			message = -1;
+			logger.error("更新失败,原因{}", e);
+			e.printStackTrace();
+			throw new BaseException(ExceptionEnum.ENTRUSTMENTHISTORY_UPDATE_FAILED);
+		}
+
+		return new Response<Integer>(message);
+	}
+
+}

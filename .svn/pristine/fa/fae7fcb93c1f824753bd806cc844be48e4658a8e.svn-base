@@ -1,0 +1,20 @@
+package com.hbsi.dao;
+
+import com.hbsi.domain.EntrustmentData;
+
+public interface EntrustmentDataMapper {
+
+	int deleteByPrimaryKey(Integer id);
+
+	int insert(EntrustmentData record);//添加报告数据
+
+	int insertSelective(EntrustmentData record);
+
+	EntrustmentData selectByPrimaryKey(Integer id);
+
+	int updateByPrimaryKeySelective(EntrustmentData record);//补全报告数据
+
+	int updateByPrimaryKey(EntrustmentData record);
+	
+	EntrustmentData selectEntrustmentData(String entrustmentNumber);//查询报告是否已存在
+}

@@ -1,0 +1,22 @@
+package com.hbsi.dao;
+
+import com.hbsi.domain.ReverseBending;
+
+public interface ReverseBendingMapper {
+
+	int deleteByPrimaryKey(Integer id);
+
+	int insert(ReverseBending record);
+
+	int insertSelective(ReverseBending record);
+
+	ReverseBending selectByPrimaryKey(Integer id);
+
+	int updateByPrimaryKeySelective(ReverseBending record);
+
+	int updateByPrimaryKey(ReverseBending record);
+	
+	ReverseBending selectRBData(ReverseBending rb);//查询扭转或弯曲值
+	
+	ReverseBending selectRBData2(ReverseBending rb);//重新判定扭转或弯曲值
+}

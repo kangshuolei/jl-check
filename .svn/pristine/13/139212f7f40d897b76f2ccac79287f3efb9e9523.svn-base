@@ -1,0 +1,195 @@
+package com.hbsi.sample.service.impl;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.ArrayList;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.JSONArray;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.hbsi.dao.SampleRecordMapper;
+import com.hbsi.domain.SampleRecord;
+import com.hbsi.exception.BaseException;
+import com.hbsi.exception.ExceptionEnum;
+import com.hbsi.response.PageResult;
+import com.hbsi.response.Response;
+import com.hbsi.sample.service.SampleRecordService;
+import com.hbsi.sample.entity.SampleRecords;
+
+/**
+ * 试验数据管理
+ * @author lixuyang
+ * @version 1.0，2018-09-27
+ *
+ */
+@Service
+public class SampleRecordServiceImpl implements SampleRecordService{
+	
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+	
+	@Autowired
+	private SampleRecordMapper sampleRecordMapper;//试样
+
+	/**
+	 * 查询试验记录
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<PageResult> selectSampleRecordList(String info) {
+		JSONObject json = JSON.parseObject(info);
+		String entrustmentNumber = json.getString("entrustmentNumber");
+		String type = json.getString("type");
+		String machineNumber = json.getString("machineNumber");
+		Integer offset = json.getInteger("offset");
+		Integer limit = json.getInteger("limit");
+		offset = (offset == null) ? 1 : offset;
+		limit = (limit == null) ? 20 : limit;
+		SampleRecord sd = new SampleRecord();
+		sd.setEntrustmentNumber(entrustmentNumber);
+		sd.setType(type);
+		sd.setMachineNumber(machineNumber);
+		PageResult result = null;
+		try {
+			PageHelper.startPage(offset, limit);// 对下一行语句进行分页
+			List<SampleRecord> srList = sampleRecordMapper.selectSampleRecordList(sd);
+			logger.info("根据用户传入用户信息:第{}条 分页查询试验记录列表,结果：{}条数据", offset + "页===" + limit, srList.size());
+			PageInfo<SampleRecord> pageinfo = new PageInfo<>(srList);
+			result = new PageResult(pageinfo.getPageSize(), pageinfo.getPageNum(), pageinfo.getTotal(),
+					pageinfo.getList());
+		} catch (Exception e) {
+			logger.error("查询试验记录信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.SAMPLE_RECORD_SELECT_FAILED);
+		}
+		return new Response<>(result);
+	}
+
+	/**
+	 * 错误处理列表
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<PageResult> selectSampleErrorList(String info) {
+		JSONObject json = JSON.parseObject(info);
+		Integer sampleBatch = json.getInteger("sampleBatch");
+		String type = json.getString("type");
+		String machineNumber = json.getString("machineNumber");
+		Integer offset = json.getInteger("offset");
+		Integer limit = json.getInteger("limit");
+		offset = (offset == null) ? 1 : offset;
+		limit = (limit == null) ? 20 : limit;
+		SampleRecord sd = new SampleRecord();
+		sd.setSampleBatch(sampleBatch);
+		sd.setType(type);
+		sd.setMachineNumber(machineNumber);
+		PageResult result = null;
+		try {
+			PageHelper.startPage(offset, limit);// 对下一行语句进行分页
+			List<SampleRecord> srList = sampleRecordMapper.selectSampleErrorList(sd);
+			logger.info("根据用户传入用户信息:第{}条 分页查询错误处理列表,结果：{}条数据", offset + "页===" + limit, srList.size());
+			PageInfo<SampleRecord> pageinfo = new PageInfo<>(srList);
+			result = new PageResult(pageinfo.getPageSize(), pageinfo.getPageNum(), pageinfo.getTotal(),
+					pageinfo.getList());
+		} catch (Exception e) {
+			logger.error("查询错误处理列表信息异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.SAMPLE_ERROR_SELECT_FAILED);
+		}
+		return new Response<>(result);
+	}
+	/**
+	 * 查询错误数据
+	 */
+	public Response<List<SampleRecord>> selectErrorDataList(Integer sampleBatch){
+		if(sampleBatch==null) {
+			logger.debug("批次号不能为空");
+			return new Response<List<SampleRecord>>("00001111","您输入的批次号为空，请输入批次号", null);
+		}else {
+			List<SampleRecord> list=sampleRecordMapper.selectErrorData(sampleBatch);
+			return new Response<List<SampleRecord>>(list);
+		}
+	}
+	
+	/**
+	 * 删除错误数据
+	 * @param info
+	 * @return
+	 */
+	@Override
+	public Response<Integer> deleteSampleError(String info) {
+		JSONObject json = JSON.parseObject(info);
+		Integer id = json.getInteger("id");
+		if(id ==null || id==0) {
+			logger.info("id不能为空");
+			return new Response<>("00005290", "id不能为空", null);
+		}
+		Integer result = null;
+		try {
+			result = sampleRecordMapper.deleteSampleError(id);
+			logger.info("根据id:{}删除错误数据,结果：{}", id, result);
+		} catch (Exception e) {
+			logger.error("删除错误数据异常 异常信息：{}", e.getMessage());
+			throw new BaseException(ExceptionEnum.SAMPLE_ERROR_DELETE_FAILED);
+		}
+		return new Response<>(result);
+	}
+	
+	/**
+	 * 查询试样批次和委托单号
+	 */
+	@Override
+	public Response<List<SampleRecord>> selectSampleBatch() {
+//		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd");
+//		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM");
+//		String dateTime=sdf.format(new Date());
+		List<SampleRecord> list=sampleRecordMapper.selectSampleBatch();
+		return new Response<List<SampleRecord>>(list);
+	}
+	
+	public Response<SampleRecords> updateSampleBatch(String info) {
+		JSONObject json = JSON.parseObject(info);
+		Integer sampleBatch = json.getInteger("sampleBatch");
+		List<Integer> list = new ArrayList<>();
+		JSONArray array = json.getJSONArray("ids");
+		for(int i=0;i<array.size();i++) {
+			JSONObject object = array.getJSONObject(i);
+			Integer id = object.getInteger("id");
+			if(id==null||id==0) {
+				logger.info("id不能为空");
+				return new Response<>("00005290", "id不能为空", null);
+			}
+			list.add(id);
+		}
+		if(sampleBatch==null||sampleBatch==0) {
+			logger.info("批次号不能为空");
+			return new Response<>("00005291", "批次号不能为空", null);
+		}
+		if(list.size() <= 0) {
+			logger.info("id不能为空");
+			return new Response<>("00005290", "id不能为空", null);
+		}else {
+			SampleRecords sampleRecords = new SampleRecords();
+			sampleRecords.setSampleRecordIdList(list);
+			sampleRecords.setSampleBatch(sampleBatch);
+				try {				
+					int i = sampleRecordMapper.updateSampleBatch(sampleRecords);
+					if(i>=1) {
+						logger.info("修改批次号成功!");
+					}else {
+						logger.debug("修改批次号失败,{}",ExceptionEnum.SAMPLE_ERROR_UPDATE_FAILED.getMessage());
+						throw new BaseException(ExceptionEnum.SAMPLE_ERROR_UPDATE_FAILED);
+					}
+				} catch (Exception e) {
+					logger.error("修改批次号失败 失败信息：{}", e.getMessage());
+					throw new BaseException(ExceptionEnum.SAMPLE_ERROR_UPDATE_FAILED);
+				}
+				return new Response<SampleRecords>(sampleRecords);
+			}
+	}
+
+}
